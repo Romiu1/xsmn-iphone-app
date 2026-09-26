@@ -111,6 +111,46 @@ function combinations(stats, perPosition=3, limit=20){
   return out.sort((a,b)=>b.score-a.score).slice(0,limit);
 }
 
+
+// ===== V4 REFERENCE ENGINE =====
+const fs = require("fs");
+const path = require("path");
+const V4_DB = path.join(__dirname, "data", "reference-db.json");
+fs.mkdirSync(path.dirname(V4_DB), {recursive:true});
+function v4db(){try{return JSON.parse(fs.readFileSync(V4_DB,"utf8"))}catch(e){return {draws:[],comparisons:[]}}}
+function v4save(d){fs.writeFileSync(V4_DB,JSON.stringify(d,null,2),"utf8")}
+function v4nums(a){return [...new Set((a||[]).map(String).map(x=>x.replace(/\D/g,"")).filter(x=>x.length>=2&&x.length<=6))]}
+function v4cmp(p,r){p=v4nums(p);r=v4nums(r);return {
+ exact:p.filter(n=>r.includes(n)),
+ twoLast:p.filter(n=>r.some(x=>x.slice(-2)===n.slice(-2))),
+ threeLast:p.filter(n=>n.length>=3&&r.some(x=>x.slice(-3)===n.slice(-3)))
+}}
+function v4rank(db,province){
+ const rows=db.comparisons.filter(x=>!province||x.province===province),m={};
+ for(const row of rows) for(const n of row.predicted||[]){
+  if(!m[n])m[n]={seen:0,exact:0,twoLast:0,threeLast:0};
+  m[n].seen++;
+  if((row.compare?.exact||[]).includes(n))m[n].exact++;
+  if((row.compare?.twoLast||[]).includes(n))m[n].twoLast++;
+  if((row.compare?.threeLast||[]).includes(n))m[n].threeLast++;
+ }
+ return Object.entries(m).map(([number,v])=>({number,...v,
+ exactRate:v.exact/v.seen,twoLastRate:v.twoLast/v.seen,threeLastRate:v.threeLast/v.seen}))
+ .sort((a,b)=>b.exactRate-a.exactRate||b.twoLastRate-a.twoLastRate);
+}
+async function v4scrape(url){
+ const rr=await fetch(url,{headers:{"User-Agent":"Mozilla/5.0 XSMN-Stats/4.0"}});
+ if(!rr.ok)throw Error("HTTP "+rr.status);
+ const body=await rr.text(),$=cheerio.load(body),out=[];
+ $("td,th,span,div,p").each((_,el)=>{
+  const ms=$(el).text().replace(/\s+/g," ").match(/\b\d{2,6}\b/g)||[];
+  for(const n of ms)if(!out.includes(n))out.push(n);
+ });
+ const m=url.match(/(\d{2})[-_](\d{2})[-_](\d{4})/);
+ return {date:m?`${m[3]}-${m[2]}-${m[1]}`:null,results:v4nums(out)};
+}
+// ===== END V4 REFERENCE ENGINE =====
+
 app.use(express.static("public"));
 app.get("/api/schedule",(_,res)=>res.json(SCHEDULE));
 
@@ -153,3 +193,54 @@ app.get("/api/analyze",async(req,res)=>{
 });
 
 app.listen(PORT,()=>console.log(`XSMN V2: http://localhost:${PORT}`));
+
+// V3: server-side scraper for public result pages
+app.get('/api/scrape', async (req, res) => {
+  try {
+    const target = String(req.query.url || '');
+    if (!/^https?:\/\//i.test(target)) return res.status(400).json({error:'URL không hợp lệ'});
+    const r = await fetch(target, {headers:{'User-Agent':'Mozilla/5.0 XSMN-Stats/3.0'}});
+    if (!r.ok) return res.status(r.status).json({error:'Nguồn trả về HTTP '+r.status});
+    const body = await r.text();
+    const $ = cheerio.load(body);
+    const out = [];
+    $('td,th,span,div,p').each((_,el)=>{
+      const ms = $(el).text().replace(/\s+/g,' ').match(/\b\d{2,6}\b/g)||[];
+      for (const n of ms) if (!out.includes(n)) out.push(n);
+    });
+    const m = target.match(/(\d{2})[-_](\d{2})[-_](\d{4})/);
+    const date = m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+    res.json({date,results:out});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+
+// ===== V4 API =====
+app.get("/api/v4/scrape",async(req,res)=>{
+ try{
+  const url=String(req.query.url||""),province=String(req.query.province||"");
+  if(!/^https?:\/\//i.test(url))return res.status(400).json({error:"URL không hợp lệ"});
+  const d=await v4scrape(url),db=v4db();
+  const row={id:Date.now().toString(),date:d.date||new Date().toISOString().slice(0,10),
+   province:province||null,url,results:d.results,savedAt:new Date().toISOString()};
+  db.draws.push(row);db.draws=db.draws.slice(-5000);v4save(db);res.json(row);
+ }catch(e){res.status(500).json({error:e.message})}
+});
+app.post("/api/v4/compare",express.json(),(req,res)=>{
+ try{
+  const b=req.body||{},db=v4db(),predicted=v4nums(b.predicted),results=v4nums(b.results);
+  const row={id:Date.now().toString(),date:b.date||new Date().toISOString().slice(0,10),
+   province:b.province||null,predicted,results,compare:v4cmp(predicted,results),savedAt:new Date().toISOString()};
+  db.comparisons.push(row);db.comparisons=db.comparisons.slice(-10000);v4save(db);res.json(row);
+ }catch(e){res.status(500).json({error:e.message})}
+});
+app.get("/api/v4/reference",(req,res)=>{
+ const db=v4db(),province=String(req.query.province||"");
+ res.json({draws:db.draws.slice(-100),comparisons:db.comparisons.slice(-100),ranked:v4rank(db,province)});
+});
+app.get("/api/v4/export",(req,res)=>{
+ res.setHeader("Content-Type","application/json; charset=utf-8");
+ res.setHeader("Content-Disposition","attachment; filename=xsmn-reference-db-v4.json");
+ res.end(JSON.stringify(v4db(),null,2));
+});
+// ===== END V4 API =====

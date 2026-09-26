@@ -106,5 +106,59 @@ async function analyze(){
 $("date").onchange=()=>{provinces();day()};$("province").onchange=day;$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();
 $("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
 </script>
+
+<section class="card" id="tracker">
+<h2>📊 Cào kết quả & đối chiếu</h2>
+<p class="muted">Nhập URL trang kết quả XSMN. Kết quả cào được lưu trên thiết bị để làm dữ liệu tham chiếu cho các lần phân tích sau.</p>
+<div class="row"><input id="resultUrl" placeholder="https://.../xsmn-DD-MM-YYYY"><button id="scrapeBtn">Cào & đối chiếu</button></div>
+<div id="scrapeStatus" class="muted"></div><div id="compareResult"></div>
+<div class="row"><button id="exportHistoryBtn">Xuất dữ liệu tham chiếu JSON</button><button id="clearHistoryBtn">Xóa dữ liệu</button></div>
+</section>
+<script>
+(()=>{const K="xsmn_reference_history_v3",q=id=>document.getElementById(id);
+const load=()=>{try{return JSON.parse(localStorage.getItem(K)||"[]")}catch(e){return[]}};
+const save=x=>localStorage.setItem(K,JSON.stringify(x));
+function render(){let a=load(),b=q("compareResult");if(!a.length){b.innerHTML='<p class="muted">Chưa có dữ liệu tham chiếu.</p>';return}
+b.innerHTML="<h3>Đã lưu "+a.length+" lần</h3>"+a.slice().reverse().map(x=>"<div style='padding:10px 0;border-top:1px solid #ddd'><b>"+(x.date||"")+"</b><br>Kết quả: "+(x.results||[]).slice(0,25).join(", ")+"<br>Khớp số đầy đủ: <b>"+(x.compare?.exact?.length||0)+"</b> · khớp 2 số cuối: <b>"+(x.compare?.two?.length||0)+"</b> · khớp 3 số cuối: <b>"+(x.compare?.three?.length||0)+"</b></div>").join("")}
+q("scrapeBtn")?.addEventListener("click",async()=>{let u=q("resultUrl").value.trim(),st=q("scrapeStatus");if(!u){st.textContent="Hãy nhập URL.";return}st.textContent="Đang cào...";
+try{let r=await fetch("/api/scrape?url="+encodeURIComponent(u));if(!r.ok)throw Error("Máy chủ chưa hỗ trợ /api/scrape");let d=await r.json(),results=d.results||[],suggested=[...document.body.innerText.matchAll(/\b\d{2,6}\b/g)].map(x=>x[0]);let exact=suggested.filter(x=>results.includes(x)),two=suggested.filter(x=>x.length>=2&&results.some(y=>y.slice(-2)===x.slice(-2))),three=suggested.filter(x=>x.length>=3&&results.some(y=>y.slice(-3)===x.slice(-3)));let a=load();a.push({date:d.date||new Date().toISOString().slice(0,10),url:u,results,compare:{exact,two,three},savedAt:new Date().toISOString()});save(a);st.textContent="Đã cào, đối chiếu và lưu dữ liệu.";render()}catch(e){st.textContent="Không cào được: "+e.message}});
+q("exportHistoryBtn")?.addEventListener("click",()=>{let b=new Blob([JSON.stringify(load(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="xsmn-reference-history.json";a.click()});
+q("clearHistoryBtn")?.addEventListener("click",()=>{if(confirm("Xóa dữ liệu tham chiếu?")){localStorage.removeItem(K);render()}});
+render()})()
+</script>
+
+<section class="card" id="v4-engine">
+<h2>🧠 V4 — Cào & học từ kết quả thực tế</h2>
+<p class="muted">Lưu kỳ quay và lịch sử đối chiếu trên máy chủ để làm dữ liệu tham chiếu cho các lần phân tích tiếp theo.</p>
+<div class="row">
+<input id="v4url" placeholder="URL trang kết quả XSMN">
+<input id="v4province" placeholder="Đài/tỉnh">
+<button id="v4scrape">Cào & lưu</button>
+</div>
+<div id="v4status" class="muted"></div>
+<hr>
+<h3>Đối chiếu bộ số</h3>
+<div class="row">
+<input id="v4pred" placeholder="Số đã cho: 12,27,45,89">
+<input id="v4actual" placeholder="Kết quả: 12,34,67,89">
+<button id="v4compare">Đối chiếu & lưu</button>
+</div>
+<div id="v4result"></div>
+<h3>📈 Lịch sử tham chiếu</h3>
+<div id="v4summary"></div>
+<div id="v4ranked"></div>
+<button id="v4export">Xuất dữ liệu V4</button>
+<script>
+(()=>{const $=id=>document.getElementById(id),csv=x=>String(x||"").split(/[\s,;]+/).filter(Boolean);
+async function refresh(){try{const d=await(await fetch("/api/v4/reference")).json();
+$("v4summary").innerHTML="<b>Kỳ đã lưu:</b> "+d.draws.length+" &nbsp; <b>Lần đối chiếu:</b> "+d.comparisons.length;
+$("v4ranked").innerHTML=(d.ranked||[]).slice(0,30).map((x,i)=>`<div style="padding:7px 0;border-bottom:1px solid #ddd"><b>${i+1}. ${x.number}</b> — ${x.seen} lần · đúng ${x.exact} · 2 cuối ${x.twoLast} · 3 cuối ${x.threeLast}</div>`).join("")||"<p class='muted'>Chưa có dữ liệu.</p>";
+}catch(e){}}
+$("v4scrape").onclick=async()=>{let u=$("v4url").value.trim();if(!u){$("v4status").textContent="Hãy nhập URL.";return}
+$("v4status").textContent="Đang cào...";try{let r=await fetch("/api/v4/scrape?url="+encodeURIComponent(u)+"&province="+encodeURIComponent($("v4province").value.trim())),d=await r.json();if(!r.ok)throw Error(d.error);$("v4status").textContent="Đã lưu "+(d.date||"")+" — "+d.results.length+" số.";refresh()}catch(e){$("v4status").textContent="Lỗi: "+e.message}};
+$("v4compare").onclick=async()=>{try{let r=await fetch("/api/v4/compare",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({predicted:csv($("v4pred").value),results:csv($("v4actual").value),province:$("v4province").value.trim()})}),d=await r.json();if(!r.ok)throw Error(d.error);$("v4result").innerHTML="Khớp đúng: <b>"+(d.compare.exact.join(", ")||"Không có")+"</b><br>2 số cuối: <b>"+(d.compare.twoLast.join(", ")||"Không có")+"</b><br>3 số cuối: <b>"+(d.compare.threeLast.join(", ")||"Không có")+"</b>";refresh()}catch(e){$("v4result").textContent="Lỗi: "+e.message}};
+$("v4export").onclick=()=>location.href="/api/v4/export";refresh()})();
+</script>
+</section>
 </body>
 </html>
