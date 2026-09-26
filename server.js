@@ -153,23 +153,3 @@ app.get("/api/analyze",async(req,res)=>{
 });
 
 app.listen(PORT,()=>console.log(`XSMN V2: http://localhost:${PORT}`));
-
-// V3: server-side scraper for public result pages
-app.get('/api/scrape', async (req, res) => {
-  try {
-    const target = String(req.query.url || '');
-    if (!/^https?:\/\//i.test(target)) return res.status(400).json({error:'URL không hợp lệ'});
-    const r = await fetch(target, {headers:{'User-Agent':'Mozilla/5.0 XSMN-Stats/3.0'}});
-    if (!r.ok) return res.status(r.status).json({error:'Nguồn trả về HTTP '+r.status});
-    const body = await r.text();
-    const $ = cheerio.load(body);
-    const out = [];
-    $('td,th,span,div,p').each((_,el)=>{
-      const ms = $(el).text().replace(/\s+/g,' ').match(/\b\d{2,6}\b/g)||[];
-      for (const n of ms) if (!out.includes(n)) out.push(n);
-    });
-    const m = target.match(/(\d{2})[-_](\d{2})[-_](\d{4})/);
-    const date = m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-    res.json({date,results:out});
-  } catch(e) { res.status(500).json({error:e.message}); }
-});
