@@ -44,10 +44,8 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
   </section>
 
   <section class="card">
-    <h2>🎯 Đối chiếu số cho</h2>
-    <div class="muted">Nhập một hoặc nhiều số, cách nhau bằng dấu phẩy. App sẽ đối chiếu trực tiếp với các số trong kết quả bên dưới.</div>
-    <input id="givenNumbers" inputmode="numeric" placeholder="Ví dụ: 1234, 56789, 28, 03">
-    <button id="compare" class="secondary">Đối chiếu với kết quả</button>
+    <h2>🎯 Đối chiếu số phân tích</h2>
+    <div class="muted">App tự lấy các <b>Bộ số tham khảo</b> trong ô Phân tích lịch sử và đối chiếu trực tiếp với kết quả xổ số bên dưới. Không cần nhập số thủ công.</div>
     <div id="matchNotice" class="hitbox" style="display:none"></div>
   </section>
 
@@ -80,36 +78,37 @@ $("clock").textContent=d0.toLocaleDateString("vi-VN",{weekday:"long",day:"2-digi
 function provinces(){const d=new Date($("date").value+"T12:00:00").getDay();$("province").innerHTML=(schedule[d]||[]).map(x=>`<option>${x}</option>`).join("")}
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]))}
 let currentResult=null;
-function givenList(){
-  return $("givenNumbers").value.split(',').map(x=>x.trim()).filter(Boolean).map(x=>x.replace(/\s+/g,''));
-}
+let analysisNumbers=[];
+function unique(a){return [...new Set(a.map(x=>String(x).trim()).filter(Boolean))]}
 function renderPrizeNumbers(prize, values, given){
   const tokens=values.map(v=>{
-    const hit=given.includes(v);
+    const hit=given.has(v);
     return `<span class="result-token ${hit?'match-number':''}">${esc(v)}</span>`;
   }).join('');
   return `<div class="result-line"><span class="prize-label">${esc(prize)}</span><span>${tokens||'—'}</span></div>`;
 }
-function compareCurrent(){
+function renderCurrentResult(){
+  if(!currentResult)return;
+  const given=new Set(analysisNumbers);
+  $("dayCard").innerHTML=`<h2>${esc(currentResult.province)}</h2><div class="muted">${currentResult.date}</div><div style="margin-top:12px">${Object.entries(currentResult.prizes).map(([k,v])=>renderPrizeNumbers(k,v,given)).join('')}</div>`;
+}
+function compareAnalysisWithResult(){
   const notice=$("matchNotice");
-  if(!currentResult){notice.style.display='none';return;}
-  const given=givenList();
-  if(!given.length){notice.style.display='none';day();return;}
+  if(!currentResult || !analysisNumbers.length){notice.style.display='none';return;}
   const hits=[];
   for(const [prize,values] of Object.entries(currentResult.prizes||{})){
-    for(const value of values){ if(given.includes(value)) hits.push({prize,value}); }
+    for(const value of values){if(analysisNumbers.includes(value))hits.push({prize,value});}
   }
   notice.style.display='block';
   notice.className='hitbox '+(hits.length?'ok':'');
-  notice.innerHTML=hits.length
-    ? `<strong>✅ Có ${hits.length} kết quả trùng số cho.</strong><div class="muted" style="margin-top:5px">${hits.map(h=>`Giải ${esc(h.prize)}: <b>${esc(h.value)}</b>`).join(' · ')}</div>`
-    : `<strong>Không có số trùng.</strong><div class="muted" style="margin-top:5px">Các số trong kết quả được giữ nguyên; nếu trùng chính xác sẽ được bôi đen.</div>`;
+  if(hits.length){
+    const byPrize={};
+    for(const h of hits)(byPrize[h.prize]??=[]).push(h.value);
+    notice.innerHTML=`<strong>✅ Có số từ Phân tích lịch sử trùng với kết quả.</strong><div class="muted" style="margin-top:5px">${Object.entries(byPrize).map(([p,vs])=>`Giải ${esc(p)}: <b>${vs.map(esc).join(', ')}</b>`).join(' · ')}</div>`;
+  }else{
+    notice.innerHTML=`<strong>Không có số phân tích trùng chính xác với kết quả.</strong><div class="muted" style="margin-top:5px">Chỉ tính trùng toàn bộ chữ số và đúng thứ tự.</div>`;
+  }
   renderCurrentResult();
-}
-function renderCurrentResult(){
-  if(!currentResult)return;
-  const given=givenList();
-  $("dayCard").innerHTML=`<h2>${esc(currentResult.province)}</h2><div class="muted">${currentResult.date}</div><div style="margin-top:12px">${Object.entries(currentResult.prizes).map(([k,v])=>renderPrizeNumbers(k,v,given)).join('')}</div>`;
 }
 async function day(){
   $("dayCard").innerHTML='<div class="loading">Đang tải kết quả…</div>';
@@ -117,7 +116,7 @@ async function day(){
     const j=await (await fetch("/api/day?date="+$("date").value)).json(); if(j.error)throw Error(j.error);
     currentResult=j.results.find(x=>x.province===$("province").value); if(!currentResult)throw Error("Chưa có dữ liệu cho đài này.");
     renderCurrentResult();
-    compareCurrent();
+    compareAnalysisWithResult();
   }catch(e){currentResult=null;$("dayCard").innerHTML=`<div class="error">${esc(e.message)}</div>`;$("matchNotice").style.display='none'}
 }
 function statCards(arr,title){
@@ -130,6 +129,7 @@ async function analyze(){
     const j=await (await fetch(u)).json();if(j.error)throw Error(j.error);
     const pos=j.positions.map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map((x,i)=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
     const combo=j.combinations.map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${x.number}</b></span>`).join("");
+    analysisNumbers=unique(j.combinations.map(x=>x.number));
     const last2=j.last2.slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
     const last3=j.last3.slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
     $("analysis").innerHTML=`
@@ -142,9 +142,10 @@ async function analyze(){
     <section class="card">${statCards(j.heads,"Đầu số")}${statCards(j.tails,"Đuôi số")}</section>
     <section class="card"><h2>2 số cuối thường xuất hiện</h2><div class="chips">${last2}</div><h3>3 số cuối</h3><div class="chips">${last3}</div></section>
     <section class="card"><div class="muted">${esc(j.note)}</div></section>`;
+    compareAnalysisWithResult();
   }catch(e){$("analysis").innerHTML=`<section class="card"><div class="error">${esc(e.message)}</div></section>`}
 }
-$("date").onchange=()=>{provinces();day()};$("province").onchange=day;$("compare").onclick=compareCurrent;$("givenNumbers").addEventListener("input",compareCurrent);$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();
+$("date").onchange=()=>{provinces();day()};$("province").onchange=day;$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();
 $("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
 </script>
 </body>
