@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>XSMN V2</title>
+<title>XSMN V2.1</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
 *{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
@@ -21,7 +21,7 @@ select,input,button{width:100%;padding:13px;border-radius:13px;font-size:16px}
 select,input{border:1px solid #d0d5dd;background:#fff}button{border:0;background:#111827;color:#fff;font-weight:750;margin-top:11px}
 .secondary{background:#eef2f6;color:#344054}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .chips{display:flex;flex-wrap:wrap;gap:7px}.chip{padding:8px 10px;border-radius:999px;background:#eef2ff;color:#344054;font-size:13px}.chip.hot{background:#111827;color:#fff}
-.number{font-size:31px;letter-spacing:4px;font-weight:900}.biggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.number{font-size:31px;letter-spacing:4px;font-weight:900}.match-number{background:#000;color:#fff;border-radius:6px;padding:2px 5px;display:inline-block}.result-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:7px 0}.prize-label{font-weight:800;min-width:34px}.hitbox{background:#f2f4f7;border:1px solid #eaecf0;border-radius:14px;padding:12px;margin-top:12px}.hitbox.ok{background:#f4f4f5;border-color:#111827}.hitbox strong{color:#111827}.result-token{display:inline-block;margin:3px 5px 3px 0;padding:5px 7px;border-radius:8px;background:#f2f4f7}.biggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
 .stat{border:1px solid #eaecf0;border-radius:14px;padding:11px}.stat b{font-size:18px}.bar{height:6px;background:#eaecf0;border-radius:8px;margin-top:7px;overflow:hidden}.bar i{display:block;height:100%;background:#111827}
 table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1px solid #eaecf0;text-align:left}th{font-size:11px;color:#667085}
 .scroll{overflow:auto}.error{color:#b42318;background:#fef3f2;padding:12px;border-radius:13px}.loading{opacity:.55}
@@ -31,7 +31,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="logo">🎯 XSMN V2</div><div class="today" id="clock"></div></div>
+  <div class="top"><div class="logo">🎯 XSMN V2.1</div><div class="today" id="clock"></div></div>
 
   <section class="card hero">
     <h2>Hôm nay</h2>
@@ -41,6 +41,14 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
       <div><label style="color:#d8dee8">Đài</label><select id="province"></select></div>
     </div>
     <button id="view">Xem kết quả</button>
+  </section>
+
+  <section class="card">
+    <h2>🎯 Đối chiếu số cho</h2>
+    <div class="muted">Nhập một hoặc nhiều số, cách nhau bằng dấu phẩy. App sẽ đối chiếu trực tiếp với các số trong kết quả bên dưới.</div>
+    <input id="givenNumbers" inputmode="numeric" placeholder="Ví dụ: 1234, 56789, 28, 03">
+    <button id="compare" class="secondary">Đối chiếu với kết quả</button>
+    <div id="matchNotice" class="hitbox" style="display:none"></div>
   </section>
 
   <section class="card" id="dayCard"><div class="loading">Đang tải…</div></section>
@@ -62,7 +70,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
     <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
   </section>
 </div>
-<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2 vào Màn hình chính</button></div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.1 vào Màn hình chính</button></div>
 
 <script>
 const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
@@ -71,13 +79,46 @@ const d0=new Date(); $("date").value=d0.toISOString().slice(0,10);
 $("clock").textContent=d0.toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"});
 function provinces(){const d=new Date($("date").value+"T12:00:00").getDay();$("province").innerHTML=(schedule[d]||[]).map(x=>`<option>${x}</option>`).join("")}
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]))}
+let currentResult=null;
+function givenList(){
+  return $("givenNumbers").value.split(',').map(x=>x.trim()).filter(Boolean).map(x=>x.replace(/\s+/g,''));
+}
+function renderPrizeNumbers(prize, values, given){
+  const tokens=values.map(v=>{
+    const hit=given.includes(v);
+    return `<span class="result-token ${hit?'match-number':''}">${esc(v)}</span>`;
+  }).join('');
+  return `<div class="result-line"><span class="prize-label">${esc(prize)}</span><span>${tokens||'—'}</span></div>`;
+}
+function compareCurrent(){
+  const notice=$("matchNotice");
+  if(!currentResult){notice.style.display='none';return;}
+  const given=givenList();
+  if(!given.length){notice.style.display='none';day();return;}
+  const hits=[];
+  for(const [prize,values] of Object.entries(currentResult.prizes||{})){
+    for(const value of values){ if(given.includes(value)) hits.push({prize,value}); }
+  }
+  notice.style.display='block';
+  notice.className='hitbox '+(hits.length?'ok':'');
+  notice.innerHTML=hits.length
+    ? `<strong>✅ Có ${hits.length} kết quả trùng số cho.</strong><div class="muted" style="margin-top:5px">${hits.map(h=>`Giải ${esc(h.prize)}: <b>${esc(h.value)}</b>`).join(' · ')}</div>`
+    : `<strong>Không có số trùng.</strong><div class="muted" style="margin-top:5px">Các số trong kết quả được giữ nguyên; nếu trùng chính xác sẽ được bôi đen.</div>`;
+  renderCurrentResult();
+}
+function renderCurrentResult(){
+  if(!currentResult)return;
+  const given=givenList();
+  $("dayCard").innerHTML=`<h2>${esc(currentResult.province)}</h2><div class="muted">${currentResult.date}</div><div style="margin-top:12px">${Object.entries(currentResult.prizes).map(([k,v])=>renderPrizeNumbers(k,v,given)).join('')}</div>`;
+}
 async function day(){
   $("dayCard").innerHTML='<div class="loading">Đang tải kết quả…</div>';
   try{
     const j=await (await fetch("/api/day?date="+$("date").value)).json(); if(j.error)throw Error(j.error);
-    const r=j.results.find(x=>x.province===$("province").value); if(!r)throw Error("Chưa có dữ liệu cho đài này.");
-    $("dayCard").innerHTML=`<h2>${esc(r.province)}</h2><div class="muted">${r.date}</div><div class="chips" style="margin-top:10px">${Object.entries(r.prizes).map(([k,v])=>`<span class="chip"><b>${k}</b> ${v.join(" ")}</span>`).join("")}</div>`;
-  }catch(e){$("dayCard").innerHTML=`<div class="error">${esc(e.message)}</div>`}
+    currentResult=j.results.find(x=>x.province===$("province").value); if(!currentResult)throw Error("Chưa có dữ liệu cho đài này.");
+    renderCurrentResult();
+    compareCurrent();
+  }catch(e){currentResult=null;$("dayCard").innerHTML=`<div class="error">${esc(e.message)}</div>`;$("matchNotice").style.display='none'}
 }
 function statCards(arr,title){
   return `<h3 style="margin-top:16px">${title}</h3><div class="biggrid">${arr.slice(0,10).map((x,i)=>`<div class="stat"><b>${x.digit}</b> <span class="muted">${x.pct}%</span><div class="bar"><i style="width:${Math.min(100,x.pct*4)}%"></i></div><div class="muted">${x.count} lần</div></div>`).join("")}</div>`;
@@ -103,7 +144,7 @@ async function analyze(){
     <section class="card"><div class="muted">${esc(j.note)}</div></section>`;
   }catch(e){$("analysis").innerHTML=`<section class="card"><div class="error">${esc(e.message)}</div></section>`}
 }
-$("date").onchange=()=>{provinces();day()};$("province").onchange=day;$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();
+$("date").onchange=()=>{provinces();day()};$("province").onchange=day;$("compare").onclick=compareCurrent;$("givenNumbers").addEventListener("input",compareCurrent);$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();
 $("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
 </script>
 </body>

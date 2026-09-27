@@ -31,3 +31,12 @@ Nguồn mặc định: SXMN.com.vn. Parser cần bảo trì nếu HTML của ngu
 
 ## Chức năng mua vé
 V2 không tự động mua/đặt vé. Nếu bổ sung bước mua, chỉ kết nối dịch vụ bán vé hợp pháp và để người dùng xác nhận giao dịch.
+
+
+## V2.1 - Đối chiếu số cho
+- Giữ nguyên hệ thống lấy và hiển thị kết quả của V2.
+- Người dùng nhập một hoặc nhiều "số cho" cách nhau bằng dấu phẩy.
+- Đối chiếu chính xác từng số với từng kết quả đang hiển thị, không đảo thứ tự và không đổi vị trí chữ số.
+- Nếu trùng chính xác, số kết quả được bôi nền đen nhưng vẫn nhìn rõ số.
+- Có thông báo tổng số kết quả trùng và giải tương ứng.
+- Không sử dụng cơ chế cào kết quả riêng của V4.
