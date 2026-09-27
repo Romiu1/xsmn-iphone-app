@@ -44,8 +44,8 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
   </section>
 
   <section class="card">
-    <h2>🎯 Đối chiếu số phân tích</h2>
-    <div class="muted">App tự lấy các <b>Bộ số tham khảo</b> trong ô Phân tích lịch sử và đối chiếu trực tiếp với kết quả xổ số bên dưới. Không cần nhập số thủ công.</div>
+    <h2>🎯 Tự động đối chiếu</h2>
+    <div class="muted">Mỗi IP chỉ thực hiện <b>Phân tích lịch sử 1 lần</b>. Bộ số được tạo từ lần phân tích đó sẽ tự động đối chiếu với kết quả xổ số đang hiển thị.</div>
     <div id="matchNotice" class="hitbox" style="display:none"></div>
   </section>
 
@@ -57,7 +57,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
       <div><label>Số ngày</label><select id="days"><option>30</option><option>60</option><option selected>90</option><option>180</option><option>365</option></select></div>
       <div><label>Phạm vi</label><select id="prize"><option value="ALL">Tất cả giải</option><option value="ĐB">Đặc biệt</option><option value="G1">Giải 1</option><option value="G2">Giải 2</option><option value="G3">Giải 3</option><option value="G4">Giải 4</option><option value="G5">Giải 5</option><option value="G6">Giải 6</option><option value="G7">Giải 7</option><option value="G8">Giải 8</option></select></div>
     </div>
-    <button id="analyze">Phân tích lịch sử</button>
+    <button id="analyze">Phân tích lịch sử (1 lần / IP)</button>
   </section>
 
   <section id="analysis"></section>
@@ -125,16 +125,21 @@ function statCards(arr,title){
 async function analyze(){
   $("analysis").innerHTML='<section class="card"><div class="loading">Đang đọc và phân tích dữ liệu lịch sử…</div></section>';
   try{
+    if(window.__analysisLoaded){
+      compareAnalysisWithResult();
+      return;
+    }
     const u=new URL("/api/analyze",location.origin);u.searchParams.set("date",$("date").value);u.searchParams.set("province",$("province").value);u.searchParams.set("days",$("days").value);u.searchParams.set("prize",$("prize").value);
     const j=await (await fetch(u)).json();if(j.error)throw Error(j.error);
     const pos=j.positions.map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map((x,i)=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
     const combo=j.combinations.map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${x.number}</b></span>`).join("");
     analysisNumbers=unique(j.combinations.map(x=>x.number));
+    window.__analysisLoaded=true;
     const last2=j.last2.slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
     const last3=j.last3.slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
     $("analysis").innerHTML=`
     <section class="card">
-      <h2>🔢 Bộ số tham khảo</h2><div class="muted">${j.province} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":j.prize}</div>
+      <h2>🔢 Bộ số tham khảo</h2><div class="muted">${j.province} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":j.prize}${j.reused?" · Đã dùng bộ phân tích đã lưu cho IP này":""}</div>
       <div class="number" style="margin:13px 0">${j.combinations[0]?.number||"—"}</div>
       <div class="chips">${combo}</div>
     </section>

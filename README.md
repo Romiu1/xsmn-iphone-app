@@ -40,3 +40,8 @@ V2 không tự động mua/đặt vé. Nếu bổ sung bước mua, chỉ kết 
 - Nếu trùng chính xác, số kết quả được bôi nền đen nhưng vẫn nhìn rõ số.
 - Có thông báo tổng số kết quả trùng và giải tương ứng.
 - Không sử dụng cơ chế cào kết quả riêng của V4.
+
+## V2.1 behavior
+- Each client IP can execute historical analysis once per server process. Subsequent requests reuse the saved analysis set.
+- The analysis-generated numbers are automatically compared with the result panel; no manual number input is required.
+- Exact full-string and same-order matches are highlighted with black background while the digits remain visible.

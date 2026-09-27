@@ -5,6 +5,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SOURCE = "https://sxmn.com.vn";
 const cache = new Map();
+// Mỗi IP chỉ được chạy Phân tích lịch sử 1 lần trong vòng đời server.
+// Kết quả phân tích được giữ trong bộ nhớ để dùng lại cho các lần đối chiếu.
+const analysisByIp = new Map();
 
 const SCHEDULE = {
   1:["TP.HCM","Đồng Tháp","Cà Mau"],
@@ -124,6 +127,11 @@ app.get("/api/day",async(req,res)=>{
 
 app.get("/api/analyze",async(req,res)=>{
   try{
+    const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").toString().split(",")[0].trim();
+    if(analysisByIp.has(ip)){
+      const saved=analysisByIp.get(ip);
+      return res.json({...saved, reused:true, message:"IP này đã Phân tích lịch sử 1 lần. App dùng lại chính bộ số đã phân tích để tự động đối chiếu với kết quả."});
+    }
     const date=String(req.query.date||"").slice(0,10);
     const province=String(req.query.province||"");
     const days=Math.min(Math.max(+req.query.days||90,1),365);
@@ -142,13 +150,15 @@ app.get("/api/analyze",async(req,res)=>{
     const nums=draws.flatMap(r=>numbersFrom(r,prize));
     const positions=digitPositionStats(nums);
     const ht=headTail(nums);
-    res.json({
+    const payload={
       source:SOURCE,province,date,days,draws:draws.length,numberCount:nums.length,prize,
       positions, heads:ht.heads, tails:ht.tails,
       last2:suffixStats(nums,2), last3:suffixStats(nums,3),
       combinations:combinations(positions,3,20),
       note:"Các tỷ lệ trên là tần suất trong dữ liệu lịch sử đã chọn; không phải xác suất chắc chắn của kỳ quay tiếp theo."
-    });
+    };
+    analysisByIp.set(ip,payload);
+    res.json(payload);
   }catch(e){res.status(500).json({error:e.message});}
 });
 
