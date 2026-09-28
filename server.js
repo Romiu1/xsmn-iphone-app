@@ -1,13 +1,25 @@
 import express from "express";
 import * as cheerio from "cheerio";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SOURCE = "https://sxmn.com.vn";
 const cache = new Map();
-// Giới hạn: 1 IP / 1 lần phân tích / 1 giải / 1 ngày.
-// Kết quả được giữ trên server trong vòng đời tiến trình; phía iPhone còn lưu localStorage để mở lại app vẫn thấy phân tích.
-const analysisByQuota = new Map();
+const DATA_DIR = path.join(process.cwd(), "data");
+const ANALYSIS_FILE = path.join(DATA_DIR, "analysis-db.json");
+fs.mkdirSync(DATA_DIR, { recursive: true });
+let analysisDB = {};
+try { analysisDB = JSON.parse(fs.readFileSync(ANALYSIS_FILE, "utf8")); } catch { analysisDB = {}; }
+function saveAnalysisDB(){ fs.writeFileSync(ANALYSIS_FILE, JSON.stringify(analysisDB, null, 2)); }
+function clientIP(req){
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || req.socket.remoteAddress || "unknown";
+}
+function ipKey(ip){ return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 32); }
+function analysisKey(ip,date,province,prize){ return [ipKey(ip),date,province,prize].join("|"); }
 
 const SCHEDULE = {
   1:["TP.HCM","Đồng Tháp","Cà Mau"],
@@ -127,16 +139,36 @@ app.get("/api/day",async(req,res)=>{
 
 app.get("/api/analyze",async(req,res)=>{
   try{
-    const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").toString().split(",")[0].trim();
-    const date=String(req.query.date||"").slice(0,10), province=String(req.query.province||"");
-    const days=Math.min(Math.max(+req.query.days||90,1),365), prize=String(req.query.prize||"ALL").toUpperCase();
-    const quotaKey=`${ip}|${date}|${prize}`;
-    if(analysisByQuota.has(quotaKey)) return res.json({...analysisByQuota.get(quotaKey),reused:true,message:"IP này đã phân tích giải này trong ngày. Dùng lại chính bộ số đã lưu."});
-    const end=new Date(date+"T12:00:00"), draws=[];
-    for(let i=0;i<days;i++){ const d=new Date(end); d.setDate(d.getDate()-i); if(!(SCHEDULE[d.getDay()]||[]).includes(province)) continue; const iso=d.toISOString().slice(0,10); try{const day=await getDay(iso),r=day.find(x=>x.province===province); if(r) draws.push(r);}catch{} }
-    const nums=draws.flatMap(r=>numbersFrom(r,prize)), positions=digitPositionStats(nums), ht=headTail(nums);
-    const payload={source:SOURCE,province,date,days,draws:draws.length,numberCount:nums.length,prize,positions,heads:ht.heads,tails:ht.tails,last2:suffixStats(nums,2),last3:suffixStats(nums,3),combinations:combinations(positions,3,20),createdAt:new Date().toISOString(),note:"Các tỷ lệ trên là tần suất trong dữ liệu lịch sử đã chọn; không phải xác suất chắc chắn của kỳ quay tiếp theo."};
-    analysisByQuota.set(quotaKey,payload); res.json(payload);
+    const date=String(req.query.date||"").slice(0,10);
+    const province=String(req.query.province||"");
+    const days=Math.min(Math.max(+req.query.days||90,1),365);
+    const prize=String(req.query.prize||"ALL").toUpperCase();
+    const key=analysisKey(req,date,province,prize);
+    if(analysisDB[key]) return res.json({ ...analysisDB[key], saved:true, once:true });
+    const end=new Date(date+"T12:00:00");
+    const draws=[];
+    for(let i=0;i<days;i++){
+      const d=new Date(end); d.setDate(d.getDate()-i);
+      if(!(SCHEDULE[d.getDay()]||[]).includes(province)) continue;
+      const iso=d.toISOString().slice(0,10);
+      try{
+        const day=await getDay(iso), r=day.find(x=>x.province===province);
+        if(r) draws.push(r);
+      }catch{}
+    }
+    const nums=draws.flatMap(r=>numbersFrom(r,prize));
+    const positions=digitPositionStats(nums);
+    const ht=headTail(nums);
+    const payload={
+      source:SOURCE,province,date,days,draws:draws.length,numberCount:nums.length,prize,
+      positions, heads:ht.heads, tails:ht.tails,
+      last2:suffixStats(nums,2), last3:suffixStats(nums,3),
+      combinations:combinations(positions,3,20),
+      note:"Các tỷ lệ trên là tần suất trong dữ liệu lịch sử đã chọn; không phải xác suất chắc chắn của kỳ quay tiếp theo."
+    };
+    analysisDB[key]=payload;
+    saveAnalysisDB();
+    res.json({ ...payload, saved:true, once:true });
   }catch(e){res.status(500).json({error:e.message});}
 });
 

@@ -1,15 +1,8 @@
 {
   "name": "xsmn-thong-ke-iphone-v2",
-  "version": "2.3.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "dependencies": {
-    "cheerio": "^1.1.2",
-    "express": "^5.1.0"
-  },
-  "description": "XSMN iPhone app V2.1 - compare given numbers with displayed results"
+  "scripts": { "start": "node server.js", "dev": "node server.js" },
+  "dependencies": { "cheerio": "^1.1.2", "express": "^5.1.0" }
 }
