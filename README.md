@@ -45,3 +45,12 @@ V2 không tự động mua/đặt vé. Nếu bổ sung bước mua, chỉ kết 
 - Each client IP can execute historical analysis once per server process. Subsequent requests reuse the saved analysis set.
 - The analysis-generated numbers are automatically compared with the result panel; no manual number input is required.
 - Exact full-string and same-order matches are highlighted with black background while the digits remain visible.
+
+
+## V2.3 changes
+- The History Analysis panel remains visible and is restored after reopening the app.
+- Analysis results are stored in iPhone/browser localStorage for the selected date + station + prize.
+- Server quota: 1 IP / 1 analysis / 1 prize / 1 day.
+- The stored analysis numbers automatically compare against the currently displayed lottery results.
+- Exact matches are highlighted with a green background while keeping the digits visible.
+- No manual number-entry field is used.

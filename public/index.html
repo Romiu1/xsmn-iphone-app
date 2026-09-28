@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>XSMN V2.1</title>
+<title>XSMN V2.3</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
 *{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
@@ -21,7 +21,7 @@ select,input,button{width:100%;padding:13px;border-radius:13px;font-size:16px}
 select,input{border:1px solid #d0d5dd;background:#fff}button{border:0;background:#111827;color:#fff;font-weight:750;margin-top:11px}
 .secondary{background:#eef2f6;color:#344054}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .chips{display:flex;flex-wrap:wrap;gap:7px}.chip{padding:8px 10px;border-radius:999px;background:#eef2ff;color:#344054;font-size:13px}.chip.hot{background:#111827;color:#fff}
-.number{font-size:31px;letter-spacing:4px;font-weight:900}.match-number{background:#000;color:#fff;border-radius:6px;padding:2px 5px;display:inline-block}.result-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:7px 0}.prize-label{font-weight:800;min-width:34px}.hitbox{background:#f2f4f7;border:1px solid #eaecf0;border-radius:14px;padding:12px;margin-top:12px}.hitbox.ok{background:#f4f4f5;border-color:#111827}.hitbox strong{color:#111827}.result-token{display:inline-block;margin:3px 5px 3px 0;padding:5px 7px;border-radius:8px;background:#f2f4f7}.biggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.number{font-size:31px;letter-spacing:4px;font-weight:900}.match-number{background:#d1fadf;color:#067647;border-radius:6px;padding:2px 5px;display:inline-block}.result-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:7px 0}.prize-label{font-weight:800;min-width:34px}.hitbox{background:#f2f4f7;border:1px solid #eaecf0;border-radius:14px;padding:12px;margin-top:12px}.hitbox.ok{background:#f4f4f5;border-color:#111827}.hitbox strong{color:#111827}.result-token{display:inline-block;margin:3px 5px 3px 0;padding:5px 7px;border-radius:8px;background:#f2f4f7}.biggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
 .stat{border:1px solid #eaecf0;border-radius:14px;padding:11px}.stat b{font-size:18px}.bar{height:6px;background:#eaecf0;border-radius:8px;margin-top:7px;overflow:hidden}.bar i{display:block;height:100%;background:#111827}
 table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1px solid #eaecf0;text-align:left}th{font-size:11px;color:#667085}
 .scroll{overflow:auto}.error{color:#b42318;background:#fef3f2;padding:12px;border-radius:13px}.loading{opacity:.55}
@@ -31,7 +31,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="logo">🎯 XSMN V2.1</div><div class="today" id="clock"></div></div>
+  <div class="top"><div class="logo">🎯 XSMN V2.3</div><div class="today" id="clock"></div></div>
 
   <section class="card hero">
     <h2>Hôm nay</h2>
@@ -68,7 +68,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
     <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
   </section>
 </div>
-<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.1 vào Màn hình chính</button></div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.3 vào Màn hình chính</button></div>
 
 <script>
 const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
@@ -79,6 +79,9 @@ function provinces(){const d=new Date($("date").value+"T12:00:00").getDay();$("p
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]))}
 let currentResult=null;
 let analysisNumbers=[];
+const ANALYSIS_STORE_PREFIX="xsmn_analysis_v23_";
+let analysisPayload=null;
+const ANALYSIS_STORE_PREFIX="xsmn_analysis_v23_";
 function unique(a){return [...new Set(a.map(x=>String(x).trim()).filter(Boolean))]}
 function renderPrizeNumbers(prize, values, given){
   const tokens=values.map(v=>{
@@ -122,36 +125,55 @@ async function day(){
 function statCards(arr,title){
   return `<h3 style="margin-top:16px">${title}</h3><div class="biggrid">${arr.slice(0,10).map((x,i)=>`<div class="stat"><b>${x.digit}</b> <span class="muted">${x.pct}%</span><div class="bar"><i style="width:${Math.min(100,x.pct*4)}%"></i></div><div class="muted">${x.count} lần</div></div>`).join("")}</div>`;
 }
-async function analyze(){
-  $("analysis").innerHTML='<section class="card"><div class="loading">Đang đọc và phân tích dữ liệu lịch sử…</div></section>';
-  try{
-    if(window.__analysisLoaded){
-      compareAnalysisWithResult();
-      return;
-    }
-    const u=new URL("/api/analyze",location.origin);u.searchParams.set("date",$("date").value);u.searchParams.set("province",$("province").value);u.searchParams.set("days",$("days").value);u.searchParams.set("prize",$("prize").value);
-    const j=await (await fetch(u)).json();if(j.error)throw Error(j.error);
-    const pos=j.positions.map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map((x,i)=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
-    const combo=j.combinations.map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${x.number}</b></span>`).join("");
-    analysisNumbers=unique(j.combinations.map(x=>x.number));
-    window.__analysisLoaded=true;
-    const last2=j.last2.slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
-    const last3=j.last3.slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
-    $("analysis").innerHTML=`
-    <section class="card">
-      <h2>🔢 Bộ số tham khảo</h2><div class="muted">${j.province} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":j.prize}${j.reused?" · Đã dùng bộ phân tích đã lưu cho IP này":""}</div>
-      <div class="number" style="margin:13px 0">${j.combinations[0]?.number||"—"}</div>
-      <div class="chips">${combo}</div>
-    </section>
-    <section class="card"><h2>📈 Từng vị trí từ phải sang trái</h2><div class="scroll"><table><tr><th>Vị trí</th><th>Chữ số có tần suất cao</th></tr>${pos}</table></div></section>
-    <section class="card">${statCards(j.heads,"Đầu số")}${statCards(j.tails,"Đuôi số")}</section>
-    <section class="card"><h2>2 số cuối thường xuất hiện</h2><div class="chips">${last2}</div><h3>3 số cuối</h3><div class="chips">${last3}</div></section>
-    <section class="card"><div class="muted">${esc(j.note)}</div></section>`;
-    compareAnalysisWithResult();
-  }catch(e){$("analysis").innerHTML=`<section class="card"><div class="error">${esc(e.message)}</div></section>`}
+function analysisKey(){
+  return ANALYSIS_STORE_PREFIX + [$('date').value,$('province').value,$('prize').value].join('|');
 }
-$("date").onchange=()=>{provinces();day()};$("province").onchange=day;$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();
-$("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
+function saveAnalysisLocal(j){
+  try{localStorage.setItem(analysisKey(),JSON.stringify(j));}catch(e){}
+}
+function loadAnalysisLocal(){
+  try{return JSON.parse(localStorage.getItem(analysisKey())||"null");}catch(e){return null;}
+}
+function renderAnalysis(j){
+  analysisPayload=j;
+  analysisNumbers=unique((j.combinations||[]).map(x=>x.number));
+  const pos=(j.positions||[]).map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map(x=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
+  const combo=(j.combinations||[]).map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${x.number}</b></span>`).join("");
+  const last2=(j.last2||[]).slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
+  const last3=(j.last3||[]).slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
+  window.__analysisLoaded=true;
+  $("analysis").innerHTML=`
+  <section class="card">
+    <h2>🔢 Phân tích lịch sử</h2>
+    <div class="muted">${esc(j.province)} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":esc(j.prize)}${j.reused?" · Đã tải lại phân tích đã lưu": " · Đã phân tích"}</div>
+    <div class="number" style="margin:13px 0">${j.combinations?.[0]?.number||"—"}</div>
+    <div class="chips">${combo}</div>
+    <div class="muted" style="margin-top:10px">Bộ số trên được dùng tự động để đối chiếu với ô Kết quả xổ số. Không cần nhập lại.</div>
+  </section>
+  <section class="card"><h2>📈 Từng vị trí từ phải sang trái</h2><div class="scroll"><table><tr><th>Vị trí</th><th>Chữ số có tần suất cao</th></tr>${pos}</table></div></section>
+  <section class="card">${statCards(j.heads||[],"Đầu số")}${statCards(j.tails||[],"Đuôi số")}</section>
+  <section class="card"><h2>2 số cuối thường xuất hiện</h2><div class="chips">${last2}</div><h3>3 số cuối</h3><div class="chips">${last3}</div></section>
+  <section class="card"><div class="muted">${esc(j.note||"")}</div></section>`;
+  compareAnalysisWithResult();
+}
+function analysisKey(){return ANALYSIS_STORE_PREFIX+[$("date").value,$("province").value,$("prize").value].join("|");}
+function saveAnalysisLocal(j){try{localStorage.setItem(analysisKey(),JSON.stringify(j))}catch(e){}}
+function loadAnalysisLocal(){try{return JSON.parse(localStorage.getItem(analysisKey())||"null")}catch(e){return null}}
+function renderAnalysis(j){
+  analysisNumbers=unique((j.combinations||[]).map(x=>x.number)); window.__analysisLoaded=true;
+  const pos=(j.positions||[]).map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map(x=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
+  const combo=(j.combinations||[]).map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${x.number}</b></span>`).join("");
+  const last2=(j.last2||[]).slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
+  const last3=(j.last3||[]).slice(0,10).map(x=>`<span class="chip">${x.value} · ${x.pct}%</span>`).join("");
+  $("analysis").innerHTML=`<section class="card"><h2>🔢 Phân tích lịch sử</h2><div class="muted">${esc(j.province)} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":esc(j.prize)}${j.reused?" · Đã tải lại phân tích đã lưu":" · Đã phân tích"}</div><div class="number" style="margin:13px 0">${j.combinations?.[0]?.number||"—"}</div><div class="chips">${combo}</div><div class="muted" style="margin-top:10px">Bộ số này được dùng tự động để đối chiếu với ô Kết quả xổ số.</div></section><section class="card"><h2>📈 Từng vị trí từ phải sang trái</h2><div class="scroll"><table><tr><th>Vị trí</th><th>Chữ số có tần suất cao</th></tr>${pos}</table></div></section><section class="card">${statCards(j.heads||[],"Đầu số")}${statCards(j.tails||[],"Đuôi số")}</section><section class="card"><h2>2 số cuối thường xuất hiện</h2><div class="chips">${last2}</div><h3>3 số cuối</h3><div class="chips">${last3}</div></section><section class="card"><div class="muted">${esc(j.note||"")}</div></section>`; compareAnalysisWithResult();
+}
+async function analyze(){
+  const saved=loadAnalysisLocal(); if(saved){renderAnalysis(saved);return;}
+  $("analysis").innerHTML='<section class="card"><div class="loading">Đang đọc và phân tích dữ liệu lịch sử…</div></section>';
+  try{const u=new URL("/api/analyze",location.origin); u.searchParams.set("date",$("date").value);u.searchParams.set("province",$("province").value);u.searchParams.set("days",$("days").value);u.searchParams.set("prize",$("prize").value); const j=await (await fetch(u)).json(); if(j.error)throw Error(j.error); saveAnalysisLocal(j); renderAnalysis(j);}catch(e){const fallback=loadAnalysisLocal(); if(fallback)renderAnalysis(fallback); else $("analysis").innerHTML=`<section class="card"><div class="error">${esc(e.message)}</div></section>`;}
+}
+function restoreAnalysis(){const saved=loadAnalysisLocal(); if(saved)renderAnalysis(saved); else $("analysis").innerHTML='<section class="card"><h2>📊 Phân tích lịch sử</h2><div class="muted">Chưa có phân tích cho ngày/giải/đài này. Bấm “Phân tích lịch sử” để thực hiện. Phân tích sẽ được giữ lại trên iPhone khi bạn thoát và mở app lại.</div></section>';}
+$("date").onchange=()=>{provinces();day();restoreAnalysis()};$("province").onchange=()=>{day();restoreAnalysis()};$("view").onclick=day;$("analyze").onclick=analyze;provinces();day();restoreAnalysis();$("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
 </script>
 </body>
 </html>
