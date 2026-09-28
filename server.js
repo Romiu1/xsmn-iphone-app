@@ -143,7 +143,7 @@ app.get("/api/analyze",async(req,res)=>{
     const province=String(req.query.province||"");
     const days=Math.min(Math.max(+req.query.days||90,1),365);
     const prize=String(req.query.prize||"ALL").toUpperCase();
-    const key=analysisKey(req,date,province,prize);
+    const key=analysisKey(clientIP(req),date,province,prize);
     if(analysisDB[key]) return res.json({ ...analysisDB[key], saved:true, once:true });
     const end=new Date(date+"T12:00:00");
     const draws=[];
