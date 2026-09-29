@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>XSMN V2.4.1</title>
+<title>XSMN V2.4.2</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
 *{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
@@ -31,7 +31,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="logo">🎯 XSMN V2.4.1</div><div class="today" id="clock"></div></div>
+  <div class="top"><div class="logo">🎯 XSMN V2.4.2</div><div class="today" id="clock"></div></div>
 
   <section class="card hero">
     <h2>Hôm nay</h2>
@@ -62,7 +62,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
     <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
   </section>
 </div>
-<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.4.1 vào Màn hình chính</button></div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.4.2 vào Màn hình chính</button></div>
 
 <script>
 const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
@@ -72,7 +72,7 @@ $("clock").textContent=d0.toLocaleDateString("vi-VN",{weekday:"long",day:"2-digi
 let currentDay=null,currentAnalysis=null;
 function provinces(){const d=new Date($("date").value+"T12:00:00").getDay();$("province").innerHTML=(schedule[d]||[]).map(x=>`<option>${x}</option>`).join("")}
 function esc(s){return String(s).replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\\":"&#92;"}[m]))}
-function analysisKey(){return `xsmn-v24-analysis|${$("date").value}|${$("province").value}|${$("prize").value}`}
+function analysisKey(){return `xsmn-v24.2-analysis|${$("date").value}|${$("province").value}|${$("prize").value}`}
 function suggestionsFrom(a){return [...new Set((a?.combinations||[]).map(x=>String(x.number)).filter(Boolean))]}
 function highlightNumber(value,suggestions){
   const n=String(value); const marks=Array(n.length).fill(false);
@@ -83,16 +83,26 @@ function highlightNumber(value,suggestions){
 function renderDay(){
   if(!currentDay){return}
   const suggestions=suggestionsFrom(currentAnalysis);
-  const matched=[];
+  const partial=[];
+  const exact=[];
   const chips=Object.entries(currentDay.prizes).map(([k,v])=>{
     const nums=v.map(n=>{
-      const hit=suggestions.some(s=>String(n).includes(s));
-      if(hit) matched.push(`${k}: ${n}`);
-      return highlightNumber(n,suggestions);
+      const value=String(n);
+      const exactHits=suggestions.filter(s=>value===s);
+      const partialHit=suggestions.some(s=>value.includes(s));
+      if(exactHits.length) exact.push(`${k}: ${value}`);
+      else if(partialHit) partial.push(`${k}: ${value}`);
+      return highlightNumber(value,suggestions);
     }).join(" ");
     return `<span class="chip"><b>${esc(k)}</b> ${nums}</span>`;
   }).join("");
-  const box=matched.length?`<div class="match-box">🟢 Số trùng với bộ số phân tích: ${matched.map(esc).join(" · ")}</div>`:"";
+  let box="";
+  if(exact.length){
+    box+=`<div class="match-box" style="background:#dcfce7;color:#14532d;border:1px solid #86efac">🎯 <b>KHỚP TOÀN BỘ GIẢI:</b> ${exact.map(esc).join(" · ")}</div>`;
+  }
+  if(partial.length){
+    box+=`<div class="match-box">🟢 Có số cho xuất hiện đúng thứ tự trong kết quả: ${partial.map(esc).join(" · ")}</div>`;
+  }
   $("dayCard").innerHTML=`<h2>${esc(currentDay.province)}</h2><div class="muted">${esc(currentDay.date)}</div>${box}<div class="chips" style="margin-top:10px">${chips}</div>`;
 }
 async function day(){
@@ -109,7 +119,7 @@ function statCards(arr,title){
 function renderAnalysis(j){
   currentAnalysis=j;
   const pos=j.positions.map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map(x=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
-  const combo=j.combinations.map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${esc(x.number)}</b></span>`).join("");
+  const combo=j.combinations.slice(0,5).map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${esc(x.number)}</b></span>`).join("");
   const last2=j.last2.slice(0,10).map(x=>`<span class="chip">${esc(x.value)} · ${x.pct}%</span>`).join("");
   const last3=j.last3.slice(0,10).map(x=>`<span class="chip">${esc(x.value)} · ${x.pct}%</span>`).join("");
   $("analysis").innerHTML=`
@@ -117,7 +127,8 @@ function renderAnalysis(j){
     <h2>🔢 Bộ số tham khảo <span class="saved-badge">✓ Đã lưu</span></h2><div class="muted">${esc(j.province)} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":esc(j.prize)} · phân tích ${j.days} ngày</div>
     <div class="number" style="margin:13px 0">${esc(j.combinations[0]?.number||"—")}</div>
     <div class="chips">${combo}</div>
-    <div class="muted" style="margin-top:10px">Phân tích này được lưu theo ngày + đài + giải. Mở lại ứng dụng sẽ dùng lại đúng bộ số đã phân tích, không chạy lại.</div>
+    <div class="muted" style="margin-top:10px">Chỉ tạo 5 nhóm số. Thuật toán lọc các đuôi có tần suất lịch sử quá cao rồi xếp hạng các tổ hợp còn lại bằng điểm cân bằng tần suất. Đây là bộ lọc thống kê, không phải dự đoán chắc chắn.</div>
+    <div class="muted" style="margin-top:6px">Bộ số được lưu riêng theo ngày + đài + từng phạm vi giải. Bạn có thể phân tích thêm giải khác mà không ghi đè bộ số đã lưu của giải trước.</div>
   </section>
   <section class="card"><h2>📈 Từng vị trí từ phải sang trái</h2><div class="scroll"><table><tr><th>Vị trí</th><th>Chữ số có tần suất cao</th></tr>${pos}</table></div></section>
   <section class="card">${statCards(j.heads,"Đầu số")}${statCards(j.tails,"Đuôi số")}</section>

@@ -10,6 +10,7 @@ const SOURCE = "https://sxmn.com.vn";
 const cache = new Map();
 const DATA_DIR = path.join(process.cwd(), "data");
 const ANALYSIS_FILE = path.join(DATA_DIR, "analysis-db.json");
+const ALGORITHM_VERSION = "v2.4.2";
 fs.mkdirSync(DATA_DIR, { recursive: true });
 let analysisDB = {};
 try { analysisDB = JSON.parse(fs.readFileSync(ANALYSIS_FILE, "utf8")); } catch { analysisDB = {}; }
@@ -19,7 +20,7 @@ function clientIP(req){
   return forwarded || req.socket.remoteAddress || "unknown";
 }
 function ipKey(ip){ return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 32); }
-function analysisKey(ip,date,province,prize){ return [ipKey(ip),date,province,prize].join("|"); }
+function analysisKey(ip,date,province,prize){ return [ALGORITHM_VERSION,ipKey(ip),date,province,prize].join("|"); }
 
 const SCHEDULE = {
   1:["TP.HCM","Đồng Tháp","Cà Mau"],
@@ -112,18 +113,35 @@ function headTail(numbers){
   return {heads:make(heads),tails:make(tails)};
 }
 
-function combinations(stats, perPosition=3, limit=20){
+function combinations(stats, perPosition=5, limit=5, excludedSuffixes=new Set()){
+  // Thuật toán điện toán: tạo toàn bộ tổ hợp từ 5 chữ số có tần suất cao nhất
+  // ở từng vị trí, sau đó loại các bộ có đuôi lịch sử quá nổi bật và xếp hạng
+  // theo điểm cân bằng. Đây chỉ là bộ lọc thống kê, không làm tăng xác suất trúng.
   const choices=stats.map(s=>s.digits.slice(0,perPosition));
   const out=[];
-  function walk(i,rev,score,parts){
+  function walk(i,rev,score,parts,pcts){
     if(i===choices.length){
-      out.push({number:rev.split("").reverse().join(""),score:+score.toFixed(8),parts});
+      const number=rev.split("").reverse().join("");
+      if(excludedSuffixes.has(number.slice(-2)) || excludedSuffixes.has(number.slice(-3))) return;
+      const mean=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:0;
+      const spread=pcts.length?Math.max(...pcts)-Math.min(...pcts):0;
+      // Ưu tiên bộ có mức tần suất vừa phải, tránh các bộ quá “nóng”.
+      const balance=Math.max(0,100-Math.abs(mean-50)*1.7-spread*0.25);
+      out.push({number,score:+(score*balance).toFixed(6),rawScore:+score.toFixed(8),balance:+balance.toFixed(2),parts});
       return;
     }
-    for(const x of choices[i]) walk(i+1,rev+x.digit,score*Math.max(x.pct,0.0001),[...parts,x.digit]);
+    for(const x of choices[i]) walk(i+1,rev+x.digit,score*Math.max(x.pct,0.0001),[...parts,x.digit],[...pcts,x.pct]);
   }
-  if(choices.length) walk(0,"",1,[]);
+  if(choices.length) walk(0,"",1,[],[]);
   return out.sort((a,b)=>b.score-a.score).slice(0,limit);
+}
+
+function excludedHotSuffixes(numbers,len=2,ratio=0.2){
+  const map=new Map();
+  for(const n of numbers) if(n.length>=len){ const k=n.slice(-len); map.set(k,(map.get(k)||0)+1); }
+  const ranked=[...map.entries()].sort((a,b)=>b[1]-a[1]);
+  const take=Math.max(1,Math.ceil(ranked.length*ratio));
+  return new Set(ranked.slice(0,take).map(([k])=>k));
 }
 
 app.use(express.static("public"));
@@ -163,7 +181,8 @@ app.get("/api/analyze",async(req,res)=>{
       source:SOURCE,province,date,days,draws:draws.length,numberCount:nums.length,prize,
       positions, heads:ht.heads, tails:ht.tails,
       last2:suffixStats(nums,2), last3:suffixStats(nums,3),
-      combinations:combinations(positions,3,20),
+      combinations:combinations(positions,5,5,new Set([...excludedHotSuffixes(nums,2),...excludedHotSuffixes(nums,3)])),
+      excludedSuffixes:[...new Set([...excludedHotSuffixes(nums,2),...excludedHotSuffixes(nums,3)])],
       note:"Các tỷ lệ trên là tần suất trong dữ liệu lịch sử đã chọn; không phải xác suất chắc chắn của kỳ quay tiếp theo."
     };
     analysisDB[key]=payload;
