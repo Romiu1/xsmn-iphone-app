@@ -1,29 +1,26 @@
-# XSMN iPhone V2.5
+# XSMN iPhone V2.6
 
-Bản V2.5 được xây trực tiếp từ V2.4.2.
+Bản V2.6 giữ nguyên XSMN V2.5 và thêm trang Vietlott riêng trong cùng app.
 
-## Giữ nguyên
-- Chọn ngày và đài/tỉnh theo lịch XSMN.
-- Kết quả xổ số.
-- Phân tích lịch sử 30/60/90/180/365 ngày.
-- Tất cả giải / ĐB / G1-G8.
-- 5 bộ số tham khảo.
-- Lưu riêng bộ số theo ngày + đài + phạm vi giải.
-- Đối chiếu tự động và tô xanh số khớp.
+## XSMN
+- Giữ chọn ngày, đài/tỉnh, 30/60/90/180/365 ngày, ĐB/G1-G8/Tất cả.
+- 5 nhóm số, lưu riêng từng giải, đối chiếu và thống kê tỷ lệ khớp.
+- Sửa CSS để ô Ngày/Đài không lấn nhau trên iPhone.
 
-## Mới ở V2.5
-- Ghi nhận lượt truy cập vào trang chủ.
-- Ước tính người truy cập duy nhất theo IP đã băm.
-- Ghi nhận mỗi lần phân tích mới.
-- Ghi nhận số lần khớp toàn bộ một giải.
-- Tính tỷ lệ khớp giải theo phạm vi phân tích.
-- Trang **📊 Thống kê hoạt động** ngay trong app.
-- Thống kê theo ngày trong 30 ngày gần nhất.
+## Vietlott
+- Mega 6/45, Power 6/55, Bingo18, Max 3D, Max 3D Pro và Lotto.
+- Kết quả được đọc từ các trang công bố của Vietlott khi truy cập được.
+- 5 nhóm số cho mỗi sản phẩm.
+- Lưu riêng theo IP đã băm + sản phẩm + kỳ quay.
+- Đối chiếu số cho với kết quả, tô xanh số trùng và tính tỷ lệ trùng.
+- Thống kê riêng theo từng sản phẩm.
+- Mega: mô phỏng lồng cầu + tần suất lịch sử + loại số kỳ trước.
+- Power: mô phỏng lồng cầu + cân bằng ngũ hành theo kỳ + loại số kỳ trước.
+- Bingo18: CSPRNG + loại số có tần suất cao.
+- Max 3D/Pro/Lotto: mô phỏng nguồn ngẫu nhiên bằng entropy hệ điều hành/CSPRNG.
 
-## Công thức tỷ lệ
-**Tỷ lệ khớp giải** = số giải được kiểm tra có ít nhất một số cho trùng chính xác toàn bộ / tổng số giải được kiểm tra × 100.
+### Quan trọng
+Phần mềm không thể tạo chuyển động vật lý của lồng cầu và không thể biến CSPRNG thành HRNG phần cứng thật. Vì vậy giao diện gọi đây là **mô phỏng thuật toán**; không tuyên bố đây là kết quả quay thật.
 
-Đây là tỷ lệ quan sát trên dữ liệu mà app đã ghi nhận, không phải xác suất toán học của xổ số.
-
-## Lưu ý triển khai Render
-V2.5 lưu thống kê vào `data/stats-db.json`. Nếu dịch vụ Render dùng filesystem tạm thời, dữ liệu thống kê có thể mất khi instance/redeploy thay đổi. Muốn giữ thống kê lâu dài, cần gắn persistent disk hoặc chuyển phần stats sang database bên ngoài.
+## Nguồn
+Kết quả Vietlott: Vietlott.vn.

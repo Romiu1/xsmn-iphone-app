@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>XSMN V2.5</title>
+<title>XSMN V2.6</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
 *{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
@@ -18,7 +18,7 @@
 h1,h2,h3{margin:0 0 7px}h2{font-size:21px}h3{font-size:17px}.muted{color:#667085;font-size:13px;line-height:1.45}
 label{display:block;margin:11px 0 6px;font-size:12px;font-weight:750;color:#475467}
 select,input,button{width:100%;padding:13px;border-radius:13px;font-size:16px}
-select,input{border:1px solid #d0d5dd;background:#fff}button{border:0;background:#111827;color:#fff;font-weight:750;margin-top:11px}
+select,input{border:1px solid #d0d5dd;background:#fff;min-width:0;max-width:100%}button{border:0;background:#111827;color:#fff;font-weight:750;margin-top:11px}
 .secondary{background:#eef2f6;color:#344054}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .chips{display:flex;flex-wrap:wrap;gap:7px}.chip{padding:8px 10px;border-radius:999px;background:#eef2ff;color:#344054;font-size:13px}.chip.hot{background:#111827;color:#fff}
 .number{font-size:31px;letter-spacing:4px;font-weight:900}.match-hit{background:#22c55e;color:#071b0b;border-radius:5px;padding:1px 3px;font-weight:900;box-shadow:0 0 0 1px #16a34a}.match-box{margin:10px 0;padding:10px 12px;border-radius:12px;background:#ecfdf3;color:#166534;font-size:13px;font-weight:750}.saved-badge{display:inline-block;margin-left:6px;padding:4px 7px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-weight:800}.biggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
@@ -32,9 +32,10 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="logo">🎯 XSMN V2.5</div><div class="today" id="clock"></div></div>
+  <div class="top"><div class="logo">🎯 XSMN V2.6</div><div class="today" id="clock"></div></div>
 
   <section class="card hero">
+    <button id="vietlottLink" class="secondary" style="margin-top:0;margin-bottom:10px">🎰 Mở trang Vietlott</button>
     <h2>Hôm nay</h2>
     <div class="muted">Chọn ngày và đài. Ứng dụng tự lọc đúng lịch XSMN.</div>
     <div class="row">
@@ -73,7 +74,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
     <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
   </section>
 </div>
-<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.5 vào Màn hình chính</button></div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.6 vào Màn hình chính</button></div>
 
 <script>
 const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
@@ -212,6 +213,7 @@ async function loadStats(){
 $("loadStats").onclick=loadStats;
 $("hideStats").onclick=()=>$("stats").style.display="none";
 provinces();
+$("vietlottLink").onclick=()=>location.href="/vietlott.html";
 day().then(loadSavedAnalysis);
 $("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
 </script>
