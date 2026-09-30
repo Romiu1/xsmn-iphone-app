@@ -11,12 +11,20 @@ const cache = new Map();
 const DATA_DIR = path.join(process.cwd(), "data");
 const ANALYSIS_FILE = path.join(DATA_DIR, "analysis-db.json");
 const STATS_FILE = path.join(DATA_DIR, "stats-db.json");
-const ALGORITHM_VERSION = "v2.6";
+const ALGORITHM_VERSION = "v2.7";
 const VIETLOTT_FILE = path.join(DATA_DIR, "vietlott-db.json");
 let vietlottDB = {};
 try { vietlottDB = JSON.parse(fs.readFileSync(VIETLOTT_FILE, "utf8")); } catch { vietlottDB = {analyses:[]}; }
 vietlottDB.analyses ||= [];
 function saveVietlottDB(){ fs.writeFileSync(VIETLOTT_FILE, JSON.stringify(vietlottDB, null, 2)); }
+vietlottDB.visits ||= {};
+vietlottDB.uniqueIPs ||= {};
+function recordVietlottVisit(req, game){
+  const day=todayKey(), ip=ipKey(clientIP(req));
+  vietlottDB.visits[`${day}|${game}`]=(vietlottDB.visits[`${day}|${game}`]||0)+1;
+  vietlottDB.uniqueIPs[`${day}|${game}|${ip}`]=true;
+  saveVietlottDB();
+}
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 let analysisDB = {};
@@ -377,9 +385,32 @@ function generateVL(game,historyRows,previous){
 }
 async function vlHistory(game,limit){
   const cfg=VL[game]; const first=await vlLatestPage(game); const $=cheerio.load(first.html); const urls=[]; $("a").each((_,a)=>{const h=$(a).attr("href")||"";if(h.includes('vietlott.vn')||h.startsWith('/')){const u=new URL(h,'https://vietlott.vn').href;if((game==='mega'&&/\/645\?id=\d+/.test(u))||(game==='power'&&/\/655\?id=\d+/.test(u))||(game==='max3d'&&/\/max-3D\?id=\d+/.test(u))||(game==='max3dpro'&&/\/max-3DPro\?id=\d+/.test(u))||(game==='bingo'&&/view-detail-bingo18-result\?id=\d+/.test(u)))if(!urls.includes(u))urls.push(u);}});urls.unshift(first.url);const rows=[];for(const u of urls.slice(0,Math.max(5,Math.min(limit,30)))){try{const p=await vlFetch(u);const r=parseVL(game,p);if(r.results.length)rows.push(r);}catch{}}if(!rows.length)rows.push(parseVL(game,first.html));return rows;}
-function vlAnalysisKey(ip,game,drawId){return ['v2.6',ipKey(ip),game,drawId].join('|');}
+function vlAnalysisKey(ip,game,drawId){return ['v2.7',ipKey(ip),game,drawId].join('|');}
 app.get('/api/vietlott/results',async(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();const r=await vlResult(game);res.json(r);}catch(e){res.status(502).json({error:e.message});}});
 app.get('/api/vietlott/analyze',async(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();const history=Math.min(Math.max(+req.query.history||90,5),365);const current=await vlResult(game);const key=vlAnalysisKey(clientIP(req),game,current.drawId);const saved=vietlottDB.analyses.find(x=>x.key===key);if(saved)return res.json({...saved,saved:true,once:true});const rows=await vlHistory(game,history);const suggestions=generateVL(game,rows.map(x=>x.results),rows[0]?.results);const matches=suggestions.filter(s=>game==='bingo' ? s.split('-').join('')===current.results.join('') : (game==='max3d'||game==='max3dpro') ? s.split('-').every((x,i)=>x===current.results[i]) : s.split('-').every(x=>current.results.includes(x))); const payload={key,game,drawId:current.drawId,date:current.date,history,algorithm:game==='mega'?'Lồng cầu cơ học mô phỏng + tần suất lịch sử + loại kỳ trước':game==='power'?'Lồng cầu cơ học mô phỏng + ngũ hành theo kỳ + loại kỳ trước':game==='bingo'?'CSPRNG + loại số có tần suất cao':'HRNG mô phỏng bằng entropy hệ điều hành/CSPRNG',suggestions,matches,note:'Đây là mô phỏng phần mềm. Không đại diện cho thiết bị quay vật lý hoặc HRNG phần cứng thật; dữ liệu kết quả dùng để đối chiếu là dữ liệu Vietlott công bố.',at:new Date().toISOString()};vietlottDB.analyses.push(payload);saveVietlottDB();res.json({...payload,saved:true,once:true});}catch(e){res.status(500).json({error:e.message});}});
-app.get('/api/vietlott/stats',(req,res)=>{const a=vietlottDB.analyses||[];const byGame={};let totalMatches=0,totalSuggestions=0;for(const x of a){const g=x.game;byGame[g] ||= {analyses:0,checks:0,matches:0};byGame[g].analyses++;byGame[g].checks++;byGame[g].matches += (x.matches||[]).length?1:0;totalMatches += (x.matches||[]).length?1:0;totalSuggestions += (x.suggestions||[]).length;}for(const v of Object.values(byGame))v.rate=v.checks?+(v.matches*100/v.checks).toFixed(2):0;res.json({totalAnalyses:a.length,totalMatches,totalSuggestions,rate:a.length?+(totalMatches*100/a.length).toFixed(2):0,byGame});});
+app.get('/api/vietlott/visit',(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();if(!['mega','power','bingo','max3d','max3dpro','lotto'].includes(game))return res.status(400).json({error:'Sản phẩm không hợp lệ'});recordVietlottVisit(req,game);res.json({ok:true});}catch(e){res.status(500).json({error:e.message});}});
+app.get('/api/vietlott/stats',(req,res)=>{
+  const games=['mega','power','bingo','max3d','max3dpro','lotto'];
+  const a=vietlottDB.analyses||[]; const byGame={};
+  for(const g of games){
+    const ga=a.filter(x=>x.game===g);
+    const matches=ga.filter(x=>(x.matches||[]).length>0).length;
+    const visits=Object.entries(vietlottDB.visits||{}).filter(([k])=>k.endsWith('|'+g)).reduce((sum,[,v])=>sum+Number(v||0),0);
+    const ips=new Set(Object.keys(vietlottDB.uniqueIPs||{}).filter(k=>k.includes('|'+g+'|')).map(k=>k.split('|')[2]));
+    byGame[g]={visits,uniqueVisitors:ips.size,analyses:ga.length,checks:ga.length,matches,rate:ga.length?+(matches*100/ga.length).toFixed(2):0};
+  }
+  const totalVisits=Object.values(byGame).reduce((s,v)=>s+v.visits,0);
+  const totalUniqueVisitors=new Set(Object.keys(vietlottDB.uniqueIPs||{}).map(k=>k.split('|')[2])).size;
+  const totalAnalyses=a.length, totalMatches=a.filter(x=>(x.matches||[]).length>0).length;
+  const days=[];
+  for(let i=0;i<30;i++){
+    const d=new Date(); d.setDate(d.getDate()-i); const date=d.toISOString().slice(0,10);
+    const visits=Object.entries(vietlottDB.visits||{}).filter(([k])=>k.startsWith(date+'|')).reduce((sum,[,v])=>sum+Number(v||0),0);
+    const ips=new Set(Object.keys(vietlottDB.uniqueIPs||{}).filter(k=>k.startsWith(date+'|')).map(k=>k.split('|')[2]));
+    const da=a.filter(x=>String(x.at||x.date||'').slice(0,10)===date); const matches=da.filter(x=>(x.matches||[]).length>0).length;
+    days.push({date,visits,uniqueVisitors:ips.size,analyses:da.length,matches,rate:da.length?+(matches*100/da.length).toFixed(2):0});
+  }
+  res.json({version:'v2.7',totalVisits,totalUniqueVisitors,totalAnalyses,totalMatches,rate:totalAnalyses?+(totalMatches*100/totalAnalyses).toFixed(2):0,byGame,days});
+});
 
-app.listen(PORT,()=>console.log(`XSMN V2.6: http://localhost:${PORT}`));
+app.listen(PORT,()=>console.log(`XSMN V2.7: http://localhost:${PORT}`));
