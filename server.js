@@ -10,17 +10,81 @@ const SOURCE = "https://sxmn.com.vn";
 const cache = new Map();
 const DATA_DIR = path.join(process.cwd(), "data");
 const ANALYSIS_FILE = path.join(DATA_DIR, "analysis-db.json");
-const ALGORITHM_VERSION = "v2.4.2";
+const STATS_FILE = path.join(DATA_DIR, "stats-db.json");
+const ALGORITHM_VERSION = "v2.5";
 fs.mkdirSync(DATA_DIR, { recursive: true });
+
 let analysisDB = {};
 try { analysisDB = JSON.parse(fs.readFileSync(ANALYSIS_FILE, "utf8")); } catch { analysisDB = {}; }
+let statsDB = {};
+try { statsDB = JSON.parse(fs.readFileSync(STATS_FILE, "utf8")); } catch { statsDB = {}; }
+
 function saveAnalysisDB(){ fs.writeFileSync(ANALYSIS_FILE, JSON.stringify(analysisDB, null, 2)); }
+function saveStatsDB(){ fs.writeFileSync(STATS_FILE, JSON.stringify(statsDB, null, 2)); }
 function clientIP(req){
   const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return forwarded || req.socket.remoteAddress || "unknown";
 }
-function ipKey(ip){ return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 32); }
+function ipKey(ip){ return crypto.createHash("sha256").update(String(ip)).digest("hex").slice(0, 32); }
 function analysisKey(ip,date,province,prize){ return [ALGORITHM_VERSION,ipKey(ip),date,province,prize].join("|"); }
+function dayKey(date){ return String(date).slice(0,10); }
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function ensureStats(){
+  if(!statsDB.version) statsDB={version:1,visits:{},analyses:[],uniqueIPs:{},fullMatches:0,fullMatchNumbers:0,prizeChecks:0,matchedPrizeChecks:0};
+  statsDB.visits ||= {};
+  statsDB.uniqueIPs ||= {};
+  statsDB.analyses ||= [];
+  statsDB.fullMatches ||= 0;
+  statsDB.fullMatchNumbers ||= 0;
+  statsDB.prizeChecks ||= 0;
+  statsDB.matchedPrizeChecks ||= 0;
+}
+ensureStats();
+
+function recordVisit(req){
+  const day=todayKey(), ip=ipKey(clientIP(req));
+  statsDB.visits[day]=(statsDB.visits[day]||0)+1;
+  statsDB.uniqueIPs[`${day}|${ip}`]=true;
+  // Keep a rolling 400-day aggregate without retaining raw IP addresses.
+  saveStatsDB();
+}
+
+function exactMatchInfo(result, prize, suggestions){
+  const checked=[];
+  const matched=[];
+  const prizes = prize === "ALL" ? Object.entries(result?.prizes||{}) : [[prize, result?.prizes?.[prize]||[]]];
+  for(const [prizeName, nums] of prizes){
+    if(!Array.isArray(nums) || !nums.length) continue;
+    checked.push(prizeName);
+    const hits=[];
+    for(const n of nums){
+      const value=String(n);
+      if(suggestions.includes(value) && !hits.includes(value)) hits.push(value);
+    }
+    if(hits.length) matched.push({prize:prizeName,numbers:hits});
+  }
+  return {checked,matched};
+}
+
+function recordAnalysis({date,province,prize,suggestions,result,days,draws,numberCount}){
+  const info=exactMatchInfo(result,prize,suggestions);
+  const day=dayKey(date);
+  statsDB.analyses.push({
+    at:new Date().toISOString(),date:day,province,prize,days,draws,numberCount,
+    suggestions,
+    checkedPrizes:info.checked,
+    matched:info.matched,
+    fullMatch:info.matched.length>0
+  });
+  statsDB.prizeChecks += info.checked.length;
+  statsDB.matchedPrizeChecks += info.matched.length;
+  if(info.matched.length){
+    statsDB.fullMatches += 1;
+    statsDB.fullMatchNumbers += info.matched.reduce((sum,x)=>sum+x.numbers.length,0);
+  }
+  saveStatsDB();
+  return info;
+}
 
 const SCHEDULE = {
   1:["TP.HCM","Đồng Tháp","Cà Mau"],
@@ -60,9 +124,7 @@ function parsePage(html, iso) {
       const province=header[c];
       if(!allowed.includes(province)) continue;
       const prizes={};
-      for(const [k,v] of Object.entries(grid)){
-        prizes[k]=(v[c-1]||"").split(/\s+/).filter(x=>/^\d+$/.test(x));
-      }
+      for(const [k,v] of Object.entries(grid)) prizes[k]=(v[c-1]||"").split(/\s+/).filter(x=>/^\d+$/.test(x));
       if(Object.keys(prizes).length) results.push({province,date:iso,prizes});
     }
   });
@@ -71,7 +133,7 @@ function parsePage(html, iso) {
 
 async function getDay(iso) {
   if(cache.has(iso)) return cache.get(iso);
-  const r=await fetch(dateUrl(iso),{headers:{"user-agent":"XSMN-iPhone-V2/2.0"}});
+  const r=await fetch(dateUrl(iso),{headers:{"user-agent":"XSMN-iPhone-V2/2.5"}});
   if(!r.ok) throw new Error(`Nguồn dữ liệu HTTP ${r.status}`);
   const data=parsePage(await r.text(),iso);
   if(!data.length) throw new Error("Không đọc được kết quả ngày này từ nguồn dữ liệu.");
@@ -83,7 +145,6 @@ function numbersFrom(result, prize) {
   if(prize && prize!=="ALL") return result.prizes[prize]||[];
   return Object.values(result.prizes).flat();
 }
-
 function digitPositionStats(numbers) {
   const maxLen=Math.max(0,...numbers.map(n=>n.length));
   return Array.from({length:maxLen},(_,idx)=>{
@@ -93,18 +154,12 @@ function digitPositionStats(numbers) {
     return {position:p,total,digits:counts.map((count,digit)=>({digit,count,pct:total?+(count*100/total).toFixed(2):0})).sort((a,b)=>b.count-a.count)};
   });
 }
-
 function suffixStats(numbers,len){
   const map=new Map();
-  for(const n of numbers) if(n.length>=len){
-    const s=n.slice(-len);
-    map.set(s,(map.get(s)||0)+1);
-  }
+  for(const n of numbers) if(n.length>=len){ const s=n.slice(-len); map.set(s,(map.get(s)||0)+1); }
   const total=numbers.filter(n=>n.length>=len).length;
-  return [...map.entries()].map(([value,count])=>({value,count,pct:total?+(count*100/total).toFixed(2):0}))
-    .sort((a,b)=>b.count-a.count).slice(0,20);
+  return [...map.entries()].map(([value,count])=>({value,count,pct:total?+(count*100/total).toFixed(2):0})).sort((a,b)=>b.count-a.count).slice(0,20);
 }
-
 function headTail(numbers){
   const heads=Array(10).fill(0), tails=Array(10).fill(0);
   for(const n of numbers){ if(!n) continue; heads[+n[0]]++; tails[+n.at(-1)]++; }
@@ -112,11 +167,7 @@ function headTail(numbers){
   const make=a=>a.map((count,digit)=>({digit,count,pct:total?+(count*100/total).toFixed(2):0})).sort((a,b)=>b.count-a.count);
   return {heads:make(heads),tails:make(tails)};
 }
-
 function combinations(stats, perPosition=5, limit=5, excludedSuffixes=new Set()){
-  // Thuật toán điện toán: tạo toàn bộ tổ hợp từ 5 chữ số có tần suất cao nhất
-  // ở từng vị trí, sau đó loại các bộ có đuôi lịch sử quá nổi bật và xếp hạng
-  // theo điểm cân bằng. Đây chỉ là bộ lọc thống kê, không làm tăng xác suất trúng.
   const choices=stats.map(s=>s.digits.slice(0,perPosition));
   const out=[];
   function walk(i,rev,score,parts,pcts){
@@ -125,7 +176,6 @@ function combinations(stats, perPosition=5, limit=5, excludedSuffixes=new Set())
       if(excludedSuffixes.has(number.slice(-2)) || excludedSuffixes.has(number.slice(-3))) return;
       const mean=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:0;
       const spread=pcts.length?Math.max(...pcts)-Math.min(...pcts):0;
-      // Ưu tiên bộ có mức tần suất vừa phải, tránh các bộ quá “nóng”.
       const balance=Math.max(0,100-Math.abs(mean-50)*1.7-spread*0.25);
       out.push({number,score:+(score*balance).toFixed(6),rawScore:+score.toFixed(8),balance:+balance.toFixed(2),parts});
       return;
@@ -135,7 +185,6 @@ function combinations(stats, perPosition=5, limit=5, excludedSuffixes=new Set())
   if(choices.length) walk(0,"",1,[],[]);
   return out.sort((a,b)=>b.score-a.score).slice(0,limit);
 }
-
 function excludedHotSuffixes(numbers,len=2,ratio=0.2){
   const map=new Map();
   for(const n of numbers) if(n.length>=len){ const k=n.slice(-len); map.set(k,(map.get(k)||0)+1); }
@@ -144,6 +193,8 @@ function excludedHotSuffixes(numbers,len=2,ratio=0.2){
   return new Set(ranked.slice(0,take).map(([k])=>k));
 }
 
+app.use(express.json());
+app.get("/",(req,res,next)=>{ try{recordVisit(req);}catch{} next(); });
 app.use(express.static("public"));
 app.get("/api/schedule",(_,res)=>res.json(SCHEDULE));
 
@@ -177,18 +228,60 @@ app.get("/api/analyze",async(req,res)=>{
     const nums=draws.flatMap(r=>numbersFrom(r,prize));
     const positions=digitPositionStats(nums);
     const ht=headTail(nums);
+    const suggestions=combinations(positions,5,5,new Set([...excludedHotSuffixes(nums,2),...excludedHotSuffixes(nums,3)])).map(x=>x.number);
+    let target=null;
+    try{ target=(await getDay(date)).find(x=>x.province===province)||null; }catch{}
+    const matchInfo=exactMatchInfo(target,prize,suggestions);
     const payload={
       source:SOURCE,province,date,days,draws:draws.length,numberCount:nums.length,prize,
       positions, heads:ht.heads, tails:ht.tails,
       last2:suffixStats(nums,2), last3:suffixStats(nums,3),
       combinations:combinations(positions,5,5,new Set([...excludedHotSuffixes(nums,2),...excludedHotSuffixes(nums,3)])),
       excludedSuffixes:[...new Set([...excludedHotSuffixes(nums,2),...excludedHotSuffixes(nums,3)])],
+      matchInfo,
       note:"Các tỷ lệ trên là tần suất trong dữ liệu lịch sử đã chọn; không phải xác suất chắc chắn của kỳ quay tiếp theo."
     };
     analysisDB[key]=payload;
     saveAnalysisDB();
+    recordAnalysis({date,province,prize,suggestions,result:target,days,draws:draws.length,numberCount:nums.length});
     res.json({ ...payload, saved:true, once:true });
   }catch(e){res.status(500).json({error:e.message});}
 });
 
-app.listen(PORT,()=>console.log(`XSMN V2: http://localhost:${PORT}`));
+app.get("/api/stats",(req,res)=>{
+  ensureStats();
+  const analyses=statsDB.analyses;
+  const byPrize={};
+  for(const a of analyses){
+    const key=a.prize;
+    byPrize[key] ||= {analyses:0,matchedAnalyses:0,prizeChecks:0,matchedPrizeChecks:0};
+    byPrize[key].analyses++;
+    if(a.fullMatch) byPrize[key].matchedAnalyses++;
+    const checked=(a.checkedPrizes||[]).length;
+    const matched=(a.matched||[]).length;
+    byPrize[key].prizeChecks += checked;
+    byPrize[key].matchedPrizeChecks += matched;
+  }
+  const days={};
+  for(const a of analyses){
+    const d=dayKey(a.date); days[d] ||= {analyses:0,matched:0}; days[d].analyses++; if(a.fullMatch) days[d].matched++; }
+  const uniqueAll=new Set(Object.keys(statsDB.uniqueIPs).map(k=>k.split("|")[1]));
+  const totalVisits=Object.values(statsDB.visits).reduce((a,b)=>a+b,0);
+  const totalAnalyses=analyses.length;
+  const totalMatched=analyses.filter(a=>a.fullMatch).length;
+  res.json({
+    version:ALGORITHM_VERSION,
+    totalVisits, uniqueVisitors:uniqueAll.size,
+    totalAnalyses, analysesWithFullMatch:totalMatched,
+    matchRate:totalAnalyses?+(totalMatched*100/totalAnalyses).toFixed(2):0,
+    prizeChecks:statsDB.prizeChecks,
+    matchedPrizeChecks:statsDB.matchedPrizeChecks,
+    prizeMatchRate:statsDB.prizeChecks?+(statsDB.matchedPrizeChecks*100/statsDB.prizeChecks).toFixed(2):0,
+    fullMatchNumbers:statsDB.fullMatchNumbers,
+    byPrize,
+    days:Object.entries(days).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,60).map(([date,v])=>({date,...v,rate:v.analyses?+(v.matched*100/v.analyses).toFixed(2):0})),
+    generatedAt:new Date().toISOString()
+  });
+});
+
+app.listen(PORT,()=>console.log(`XSMN V2.5: http://localhost:${PORT}`));

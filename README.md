@@ -1,22 +1,29 @@
-# XSMN iPhone V2.4
+# XSMN iPhone V2.5
 
-Bản V2.4 được xây dựng trực tiếp từ XSMN V2 gốc, giữ nguyên lựa chọn ngày, đài/tỉnh, số ngày 30/60/90/180/365, phạm vi giải và phần Kết quả/Phân tích lịch sử.
+Bản V2.5 được xây trực tiếp từ V2.4.2.
 
-## Bổ sung V2.4
-- Lưu bộ phân tích lịch sử để đóng/mở lại app vẫn hiển thị đúng bộ số cũ.
-- Mỗi IP + ngày + đài/tỉnh + phạm vi giải chỉ tạo một lần phân tích; lần sau dùng lại kết quả đã lưu.
-- Không yêu cầu nhập số thủ công.
-- Tự động lấy các bộ số được tạo trong "Bộ số tham khảo" để đối chiếu với chính kết quả xổ số đang hiển thị.
-- Nếu số phân tích xuất hiện liên tiếp đúng thứ tự trong kết quả, phần số trùng được tô nền xanh.
-- Giữ nguyên danh sách đài/tỉnh và lịch XSMN của V2 gốc.
+## Giữ nguyên
+- Chọn ngày và đài/tỉnh theo lịch XSMN.
+- Kết quả xổ số.
+- Phân tích lịch sử 30/60/90/180/365 ngày.
+- Tất cả giải / ĐB / G1-G8.
+- 5 bộ số tham khảo.
+- Lưu riêng bộ số theo ngày + đài + phạm vi giải.
+- Đối chiếu tự động và tô xanh số khớp.
 
-## Chạy
-```bash
-npm install
-npm start
-```
+## Mới ở V2.5
+- Ghi nhận lượt truy cập vào trang chủ.
+- Ước tính người truy cập duy nhất theo IP đã băm.
+- Ghi nhận mỗi lần phân tích mới.
+- Ghi nhận số lần khớp toàn bộ một giải.
+- Tính tỷ lệ khớp giải theo phạm vi phân tích.
+- Trang **📊 Thống kê hoạt động** ngay trong app.
+- Thống kê theo ngày trong 30 ngày gần nhất.
 
-Mở `http://localhost:3000`.
+## Công thức tỷ lệ
+**Tỷ lệ khớp giải** = số giải được kiểm tra có ít nhất một số cho trùng chính xác toàn bộ / tổng số giải được kiểm tra × 100.
 
-## Render
-Có thể dùng lại Web Service Render hiện có của V2. Chỉ cần cập nhật mã nguồn/đẩy phiên bản V2.4 lên repository mà Render đang theo dõi; không cần tạo lại Web Service.
+Đây là tỷ lệ quan sát trên dữ liệu mà app đã ghi nhận, không phải xác suất toán học của xổ số.
+
+## Lưu ý triển khai Render
+V2.5 lưu thống kê vào `data/stats-db.json`. Nếu dịch vụ Render dùng filesystem tạm thời, dữ liệu thống kê có thể mất khi instance/redeploy thay đổi. Muốn giữ thống kê lâu dài, cần gắn persistent disk hoặc chuyển phần stats sang database bên ngoài.

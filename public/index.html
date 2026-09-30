@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>XSMN V2.4.2</title>
+<title>XSMN V2.5</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
 *{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
@@ -27,11 +27,12 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 .scroll{overflow:auto}.error{color:#b42318;background:#fef3f2;padding:12px;border-radius:13px}.loading{opacity:.55}
 .bottom{position:fixed;bottom:0;left:0;right:0;background:#ffffffee;border-top:1px solid #eaecf0;padding:10px max(14px,calc((100vw - 760px)/2 + 14px)) calc(10px + env(safe-area-inset-bottom));backdrop-filter:blur(14px)}
 .bottom button{margin:0}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.statbox{border:1px solid #eaecf0;border-radius:14px;padding:12px}.statbox b{font-size:22px}.rate{font-weight:900;color:#166534}.table-wrap{overflow:auto}.mini-note{font-size:11px;color:#667085;line-height:1.4}.admin-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-actions button{margin-top:0}.badge-green{display:inline-block;padding:4px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:800}
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="logo">🎯 XSMN V2.4.2</div><div class="today" id="clock"></div></div>
+  <div class="top"><div class="logo">🎯 XSMN V2.5</div><div class="today" id="clock"></div></div>
 
   <section class="card hero">
     <h2>Hôm nay</h2>
@@ -56,13 +57,23 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 
   <section id="analysis"></section>
 
+  <section class="card" id="statsCard">
+    <h2>📊 Thống kê hoạt động</h2>
+    <div class="muted">Theo dõi lượt truy cập, số lần phân tích và tỷ lệ khớp toàn bộ giải được ghi nhận bởi máy chủ V2.5.</div>
+    <div class="admin-actions">
+      <button id="loadStats">Xem thống kê</button>
+      <button id="hideStats" class="secondary">Ẩn thống kê</button>
+    </div>
+    <div id="stats" style="display:none;margin-top:12px"></div>
+  </section>
+
   <section class="card">
     <h3>ℹ️ Ghi chú</h3>
     <div class="muted">Số hiển thị là kết quả và thống kê tần suất lịch sử. Tần suất quá khứ không bảo đảm hoặc làm thay đổi xác suất toán học của kỳ quay tiếp theo.</div>
     <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
   </section>
 </div>
-<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.4.2 vào Màn hình chính</button></div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.5 vào Màn hình chính</button></div>
 
 <script>
 const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
@@ -120,11 +131,16 @@ function renderAnalysis(j){
   currentAnalysis=j;
   const pos=j.positions.map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map(x=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
   const combo=j.combinations.slice(0,5).map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${esc(x.number)}</b></span>`).join("");
+  const matched=(j.matchInfo?.matched||[]);
+  const matchSummary=matched.length
+    ? `<div class="match-box" style="background:#dcfce7;color:#14532d;border:1px solid #86efac">🎯 <b>KHỚP TOÀN BỘ GIẢI:</b> ${matched.map(x=>`${esc(x.prize)}: ${x.numbers.map(esc).join(", ")}`).join(" · ")}</div>`
+    : `<div class="match-box">ℹ️ Chưa ghi nhận số cho khớp toàn bộ số của giải trong kỳ đang xem.</div>`;
   const last2=j.last2.slice(0,10).map(x=>`<span class="chip">${esc(x.value)} · ${x.pct}%</span>`).join("");
   const last3=j.last3.slice(0,10).map(x=>`<span class="chip">${esc(x.value)} · ${x.pct}%</span>`).join("");
   $("analysis").innerHTML=`
   <section class="card">
     <h2>🔢 Bộ số tham khảo <span class="saved-badge">✓ Đã lưu</span></h2><div class="muted">${esc(j.province)} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":esc(j.prize)} · phân tích ${j.days} ngày</div>
+    ${matchSummary}
     <div class="number" style="margin:13px 0">${esc(j.combinations[0]?.number||"—")}</div>
     <div class="chips">${combo}</div>
     <div class="muted" style="margin-top:10px">Chỉ tạo 5 nhóm số. Thuật toán lọc các đuôi có tần suất lịch sử quá cao rồi xếp hạng các tổ hợp còn lại bằng điểm cân bằng tần suất. Đây là bộ lọc thống kê, không phải dự đoán chắc chắn.</div>
@@ -163,6 +179,38 @@ $("days").onchange=loadSavedAnalysis;
 $("prize").onchange=loadSavedAnalysis;
 $("view").onclick=day;
 $("analyze").onclick=analyze;
+
+function pct(n,d){return d?((n*100/d).toFixed(2)+"%"):"0%"}
+function renderStats(j){
+  const cards=[
+    ["👥 Lượt truy cập",j.totalVisits],
+    ["🧑 Người truy cập duy nhất*",j.uniqueVisitors],
+    ["🔢 Tổng lần phân tích",j.totalAnalyses],
+    ["🎯 Lần có khớp toàn bộ",j.analysesWithFullMatch],
+    ["📈 Tỷ lệ phân tích có khớp",j.matchRate+"%"],
+    ["🏆 Tỷ lệ khớp từng giải",j.prizeMatchRate+"%"]
+  ].map(x=>`<div class="statbox"><div class="muted">${x[0]}</div><b>${esc(x[1])}</b></div>`).join("");
+  const rows=Object.entries(j.byPrize||{}).sort((a,b)=>a[0].localeCompare(b[0])).map(([prize,v])=>{
+    const rate=pct(v.matchedPrizeChecks,v.prizeChecks);
+    return `<tr><td><b>${esc(prize==="ALL"?"Tất cả giải":prize)}</b></td><td>${v.analyses}</td><td>${v.prizeChecks}</td><td>${v.matchedPrizeChecks}</td><td class="rate">${rate}</td></tr>`;
+  }).join("");
+  const days=(j.days||[]).slice(0,30).map(d=>`<tr><td>${esc(d.date)}</td><td>${d.analyses}</td><td>${d.matched}</td><td class="rate">${d.rate}%</td></tr>`).join("");
+  $("stats").innerHTML=`<div class="stats-grid">${cards}</div>
+    <div class="mini-note" style="margin:10px 0">* Người truy cập duy nhất được ước tính theo IP đã băm; đây không phải số người thực tế tuyệt đối. Tỷ lệ khớp là tỷ lệ quan sát từ dữ liệu app đã ghi nhận, không phải xác suất trúng xổ số.</div>
+    <h3 style="margin-top:15px">Tỷ lệ khớp theo phạm vi giải</h3>
+    <div class="table-wrap"><table><tr><th>Giải</th><th>Phân tích</th><th>Giải được kiểm</th><th>Giải khớp</th><th>Tỷ lệ</th></tr>${rows||'<tr><td colspan="5">Chưa có dữ liệu.</td></tr>'}</table></div>
+    <h3 style="margin-top:15px">30 ngày gần nhất</h3>
+    <div class="table-wrap"><table><tr><th>Ngày</th><th>Phân tích</th><th>Khớp</th><th>Tỷ lệ</th></tr>${days||'<tr><td colspan="4">Chưa có dữ liệu.</td></tr>'}</table></div>`;
+  $("stats").style.display="block";
+}
+async function loadStats(){
+  $("stats").style.display="block";
+  $("stats").innerHTML='<div class="loading">Đang tải thống kê…</div>';
+  try{const r=await fetch('/api/stats'); const j=await r.json(); if(j.error) throw Error(j.error); renderStats(j);}
+  catch(e){$("stats").innerHTML=`<div class="error">${esc(e.message)}</div>`;}
+}
+$("loadStats").onclick=loadStats;
+$("hideStats").onclick=()=>$("stats").style.display="none";
 provinces();
 day().then(loadSavedAnalysis);
 $("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
