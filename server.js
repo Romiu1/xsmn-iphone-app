@@ -11,7 +11,7 @@ const cache = new Map();
 const DATA_DIR = path.join(process.cwd(), "data");
 const ANALYSIS_FILE = path.join(DATA_DIR, "analysis-db.json");
 const STATS_FILE = path.join(DATA_DIR, "stats-db.json");
-const ALGORITHM_VERSION = "v2.7";
+const ALGORITHM_VERSION = "v2.8";
 const VIETLOTT_FILE = path.join(DATA_DIR, "vietlott-db.json");
 let vietlottDB = {};
 try { vietlottDB = JSON.parse(fs.readFileSync(VIETLOTT_FILE, "utf8")); } catch { vietlottDB = {analyses:[]}; }
@@ -298,119 +298,65 @@ app.get("/api/stats",(req,res)=>{
 });
 
 
-// ---------------- Vietlott V2.6 ----------------
+// ---------------- Vietlott V2.8 ----------------
+// Vietlott official pages can return HTTP 403 to cloud/data-center IPs.
+// Use official source first, then a public Vietnam result mirror and GitHub history fallback.
 const VL={
-  mega:{title:"Mega 6/45",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/645",max:45,balls:6},
-  power:{title:"Power 6/55",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655",max:55,balls:6},
-  max3d:{title:"Max 3D",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/max-3D.html",max:999,balls:2},
-  max3dpro:{title:"Max 3D Pro",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/thong-bao-ket-qua-Max3DPro",max:999,balls:2},
-  bingo:{title:"Bingo18",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/view-detail-bingo18-result",max:6,balls:3},
-  lotto:{title:"Lotto",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/lotto",max:49,balls:6}
+  mega:{title:"Mega 6/45",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/645",raw:"https://raw.githubusercontent.com/vietvudanh/vietlott-data/main/data/power645.jsonl",max:45,balls:6},
+  power:{title:"Power 6/55",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655",raw:"https://raw.githubusercontent.com/vietvudanh/vietlott-data/main/data/power655.jsonl",max:55,balls:6},
+  bingo:{title:"Bingo18",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/winning-number-bingo18",raw:"https://raw.githubusercontent.com/vietvudanh/vietlott-data/main/data/bingo18.jsonl",max:9,balls:3},
+  max3d:{title:"Max 3D",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/max-3d",raw:"https://raw.githubusercontent.com/vietvudanh/vietlott-data/main/data/3d.jsonl",max:999,balls:2},
+  max3dpro:{title:"Max 3D Pro",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/max3dpro",raw:"https://raw.githubusercontent.com/vietvudanh/vietlott-data/main/data/3d_pro.jsonl",max:999,balls:2},
+  lotto:{title:"Lotto 5/35",list:"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/535",raw:"https://raw.githubusercontent.com/vietvudanh/vietlott-data/main/data/power535.jsonl",max:35,balls:5}
 };
 const vlCache=new Map();
 function cleanText(s){return String(s||"").replace(/\s+/g," ").trim();}
-function firstLink($, selector){let href=null; $("a").each((_,a)=>{const h=$(a).attr("href")||""; if(!href && selector.test(h)) href=h;}); return href?new URL(href,"https://vietlott.vn").href:null;}
-async function vlFetch(url){const r=await fetch(url,{headers:{"user-agent":"XSMN-iPhone-V2.6","accept-language":"vi-VN,vi;q=0.9"}});if(!r.ok)throw new Error(`Vietlott HTTP ${r.status}`);return await r.text();}
-async function vlLatestPage(game){
-  const cfg=VL[game]; if(!cfg) throw new Error("Sản phẩm Vietlott không hợp lệ.");
-  const html=await vlFetch(cfg.list); const $=cheerio.load(html);
-  let detail=cfg.list;
-  if(game==='mega') detail=firstLink($,/\/645\?id=\d+/i)||detail;
-  else if(game==='power') detail=firstLink($,/\/655\?id=\d+/i)||detail;
-  else if(game==='max3d') detail=firstLink($,/\/max-3D\?id=\d+/i)||detail;
-  else if(game==='max3dpro') detail=firstLink($,/\/max-3DPro\?id=\d+/i)||detail;
-  else if(game==='bingo') detail=firstLink($,/view-detail-bingo18-result\?id=\d+/i)||detail;
-  else detail=firstLink($,/lotto.*id=/i)||detail;
-  return {html: detail===cfg.list?html:await vlFetch(detail),url:detail};
-}
+function firstLink($, selector){let href=null; $("a").each((_,a)=>{const h=$(a).attr("href")||"";if(!href&&selector.test(h))href=h;});return href?new URL(href,"https://vietlott.vn").href:null;}
+async function vlFetch(url){const r=await fetch(url,{headers:{"user-agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1","accept":"text/html,application/xhtml+xml,application/json,text/plain,*/*","accept-language":"vi-VN,vi;q=0.9,en;q=0.7","referer":"https://vietlott.vn/"},redirect:"follow"});if(!r.ok)throw new Error(`HTTP ${r.status}`);return await r.text();}
 function parseVL(game,html){
   const $=cheerio.load(html); const text=cleanText($("body").text());
-  const idm=text.match(/Kỳ quay thưởng\s*#?\s*(\d+)/i)||text.match(/Kỳ quay\s*#(\d+)/i); const dm=text.match(/(\d{2}\/\d{2}\/\d{4})/);
-  let drawId=idm?idm[1]:""; let date=dm?dm[1].split('/').reverse().join('-'):""; let results=[]; let bonus="";
-  if(game==='mega'){const m=text.match(/Kỳ quay thưởng\s*#?\s*\d+[\s\S]{0,220}?((?:0?\d{1,2}\s+){5}0?\d{1,2})/i);if(m)results=m[1].match(/\d{1,2}/g).map(x=>x.padStart(2,'0')).slice(0,6);}
-  else if(game==='power'){const m=text.match(/Kỳ quay thưởng\s*#?\s*\d+[\s\S]{0,220}?((?:0?\d{1,2}\s+){5}0?\d{1,2})\s*\|\s*(0?\d{1,2})/i);if(m){results=m[1].match(/\d{1,2}/g).map(x=>x.padStart(2,'0')).slice(0,6);bonus=m[2].padStart(2,'0');}}
-  else if(game==='bingo'){const m=text.match(/Ngày quay\s*\|\s*Kỳ quay\s*\|\s*Kết quả[\s\S]{0,180}?\|\s*(\d)\s+(\d)\s+(\d)/i);if(m)results=[m[1],m[2],m[3]];}
-  else if(game==='max3d'||game==='max3dpro'){const block=text.match(/Giải Đặc biệt\s+([0-9]{3})\s+([0-9]{3})/i);if(block)results=[block[1],block[2]];}
-  else {const m=text.match(/Kết quả[^\d]{0,100}((?:\d{1,2}\s+){5}\d{1,2})/i);if(m)results=m[1].match(/\d{1,2}/g).map(x=>x.padStart(2,'0')).slice(0,6);}
-  if(!results.length) throw new Error("Chưa đọc được kết quả Vietlott từ trang chính thức.");
-  return {game,drawId,date,results,bonus,sourceUrl:"https://vietlott.vn"};
+  const idm=text.match(/Kỳ(?: quay thưởng| quay| QSMT)\s*#?\s*(\d+)/i); const dm=text.match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/); let drawId=idm?idm[1]:""; let date=dm?`${dm[3]}-${dm[2]}-${dm[1]}`:""; let results=[];let bonus="";
+  if(game==='mega'){const m=text.match(/Kỳ quay(?: thưởng)?\s*#?\s*\d+[\s\S]{0,350}?((?:0?\d{1,2}\s+){5}0?\d{1,2})/i);if(m)results=m[1].match(/\d{1,2}/g).map(x=>x.padStart(2,'0')).slice(0,6);}
+  else if(game==='power'){const m=text.match(/Kỳ quay(?: thưởng)?\s*#?\s*\d+[\s\S]{0,350}?((?:0?\d{1,2}\s+){5}0?\d{1,2})(?:\s+)(0?\d{1,2})/i);if(m){results=m[1].match(/\d{1,2}/g).map(x=>x.padStart(2,'0')).slice(0,6);bonus=m[2].padStart(2,'0');}}
+  else if(game==='lotto'){const m=text.match(/Kết quả Lotto 5\/35[\s\S]{0,260}?Kết quả QSMT kỳ\s*#?\s*(\d+)[\s\S]{0,180}?((?:0?\d{1,2}\s+){5}0?\d{1,2})/i);if(m){drawId=m[1];results=m[2].match(/\d{1,2}/g).map(x=>x.padStart(2,'0')).slice(0,5);bonus=m[2].match(/\d{1,2}/g).map(x=>x.padStart(2,'0'))[5]||'';}}
+  else if(game==='bingo'){const m=text.match(/Kết quả(?: QSMT kỳ)?[\s\S]{0,220}?Kỳ QSMT\s*#?\s*(\d+)[\s\S]{0,180}?((?:[0-9]\s+){2}[0-9])/i)||text.match(/Kỳ QSMT\s*#?\s*(\d+)[\s\S]{0,120}?\b([0-9])\s+([0-9])\s+([0-9])\b/i);if(m){drawId=m[1];results=m[2]?m[2].match(/\d/g).slice(0,3):[m[2],m[3],m[4]];}}
+  else if(game==='max3d'||game==='max3dpro'){const block=text.match(/Kết quả\s*Max(?:3D Pro| 3D)[\s\S]{0,650}?Đặc biệt(?:\s*1[^:]*:)?\s*([0-9]{3})\s+([0-9]{3})/i);if(block)results=[block[1],block[2]];}
+  if(!results.length)throw new Error("Chưa đọc được kết quả Vietlott.");
+  return {game,drawId,date,results,bonus,sourceUrl:"https://vietlott.vn",sourceType:"official"};
 }
-async function vlResult(game){const cached=vlCache.get(game);if(cached)return cached;const {html,url}=await vlLatestPage(game);const out=parseVL(game,html);out.detailUrl=url;vlCache.set(game,out);return out;}
+function normalizeRawVL(game,row){
+  if(!row||!row.result)return null;let results=[];let bonus="";
+  if(Array.isArray(row.result)){
+    const vals=row.result.map(x=>String(x));
+    if(game==='power'){results=vals.slice(0,6).map(x=>x.padStart(2,'0'));bonus=vals[6]?vals[6].padStart(2,'0'):'';}
+    else if(game==='lotto'){results=vals.slice(0,5).map(x=>x.padStart(2,'0'));bonus=vals[5]?vals[5].padStart(2,'0'):'';}
+    else results=vals.slice(0,VL[game].balls).map(x=>game==='bingo'?x.padStart(1,'0'):x.padStart(2,'0'));
+  }else if(typeof row.result==='object'){
+    const r=row.result; const all=[...(r['Giải Đặc biệt']||[]),...(r['Giải Nhất']||[]),...(r['Giải Nhì']||[]),...(r['Giải ba']||[])];
+    results=all.slice(0,game==='max3d'||game==='max3dpro'?2:VL[game].balls).map(x=>String(x));
+  }
+  if(!results.length)return null;
+  return {game,drawId:String(row.id||''),date:String(row.date||''),results,bonus,sourceUrl:VL[game].raw,sourceType:'github-fallback'};
+}
+async function vlRawRows(game){
+  const cfg=VL[game]; const txt=await vlFetch(cfg.raw); const rows=[];for(const line of txt.split(/\r?\n/)){if(!line.trim())continue;try{const r=JSON.parse(line);if(r.date&&r.result)rows.push(r);}catch{}}rows.sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.id).localeCompare(String(a.id)));return rows;}
+async function vlFallback(game){
+  // Vietnam mirror is tried before historical GitHub data so a same-day result can be shown.
+  const today=new Date();
+  const candidates=[];for(let i=0;i<3;i++){const d=new Date(today);d.setDate(d.getDate()-i);const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();candidates.push(`https://www.minhchinh.com/ket-qua-xo-so/${dd}-${mm}-${yyyy}.html`);}
+  for(const u of candidates){try{const html=await vlFetch(u);const r=parseVL(game,html);if(r.results.length){r.sourceUrl=u;r.sourceType='mirror';return r;}}catch{}}
+  const rows=await vlRawRows(game);const r=normalizeRawVL(game,rows[0]);if(!r)throw new Error('Không có dữ liệu Vietlott dự phòng.');return r;
+}
+async function vlLatestPage(game){const cfg=VL[game];if(!cfg)throw new Error('Sản phẩm Vietlott không hợp lệ.');const html=await vlFetch(cfg.list);const $=cheerio.load(html);let detail=cfg.list;if(game==='mega')detail=firstLink($,/\/645\?id=\d+/i)||detail;else if(game==='power')detail=firstLink($,/\/655\?id=\d+/i)||detail;else if(game==='max3d')detail=firstLink($,/\/max-3d\?id=\d+/i)||detail;else if(game==='max3dpro')detail=firstLink($,/\/max3dpro\?id=\d+/i)||detail;else if(game==='bingo')detail=firstLink($,/bingo18.*id=/i)||detail;else detail=firstLink($,/\/535.*id=\d+/i)||detail;return {html:detail===cfg.list?html:await vlFetch(detail),url:detail};}
+async function vlResult(game){const cached=vlCache.get(game);if(cached&&Date.now()-cached._at<120000)return cached;try{const {html,url}=await vlLatestPage(game);const out=parseVL(game,html);out.detailUrl=url;out._at=Date.now();vlCache.set(game,out);return out;}catch(e){const out=await vlFallback(game);out._at=Date.now();vlCache.set(game,out);return out;}}
 function seededWeights(max,history){const counts=Array(max+1).fill(0);for(const n of history||[])for(const x of n){const v=Number(x);if(v>=1&&v<=max)counts[v]++;}return counts;}
-function weightedPick(max,count,weights,blocked=new Set(),allowedPool=null){
-  const base=allowedPool||Array.from({length:max},(_,i)=>i+1);
-  const pool=base.filter(n=>!blocked.has(n));
-  const out=[];
-  for(let k=0;k<count&&pool.length;k++){
-    let total=0; for(const n of pool) total += 1+Math.sqrt((weights[n]||0)+1);
-    let r=crypto.randomInt(0,Math.max(1,Math.floor(total*1000000)))/1000000;
-    let chosen=pool[pool.length-1];
-    for(const n of pool){ const w=1+Math.sqrt((weights[n]||0)+1); r-=w; if(r<=0){chosen=n;break;} }
-    out.push(chosen); pool.splice(pool.indexOf(chosen),1);
-  }
-  return out.sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0'));
-}
-function powerElement(n){return ["Kim","Mộc","Thủy","Hỏa","Thổ"][(n-1)%5];}
-function generateVL(game,historyRows,previous){
-  const cfg=VL[game]; const prev=new Set((previous||[]).map(Number));
-  const weights=seededWeights(cfg.max,historyRows);
-  const hot=[...Array(cfg.max).keys()].map(i=>i+1).sort((a,b)=>(weights[b]||0)-(weights[a]||0));
-  const hotSet=new Set(hot.slice(0,Math.max(1,Math.floor(cfg.max*.12))));
-  const suggestions=[];
-  for(let i=0;i<5;i++){
-    let s;
-    if(game==='mega'){
-      s=weightedPick(45,6,weights,prev);
-    } else if(game==='power'){
-      // Mô phỏng cân bằng ngũ hành: mỗi bộ ưu tiên đủ 5 hành, hành dư thay đổi theo kỳ.
-      const elements=["Kim","Mộc","Thủy","Hỏa","Thổ"]; const target=elements[i%5];
-      const powerWeights=Object.fromEntries(Object.entries(weights).map(([n,w])=>[n,(powerElement(Number(n))===target?(w+1)*2.5:w)]));
-      const pools={}; for(const e of elements)pools[e]=Array.from({length:55},(_,k)=>k+1).filter(n=>powerElement(n)===e);
-      const chosen=[];
-      for(const e of elements){ const pool=pools[e]; const pick=weightedPick(55,1,powerWeights,new Set([...prev,...hotSet]),pool); if(pick.length) chosen.push(pick[0]); }
-      while(chosen.length<6){ const pool=Array.from({length:55},(_,k)=>k+1).filter(n=>!prev.has(n)&&!hotSet.has(n)&&!chosen.includes(n)); const pick=weightedPick(55,1,weights,new Set(),pool); if(!pick.length)break; chosen.push(pick[0]); }
-      if(target) chosen.push(...[]); s=chosen.slice(0,6).sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0'));
-    } else if(game==='bingo'){
-      // Bingo18 thực tế quay 3 lần, mỗi lần 1..6. Mô phỏng CSPRNG và loại số nóng.
-      s=weightedPick(6,3,weights,new Set([...prev,...hotSet]));
-      if(s.length<3) s=weightedPick(6,3,weights,prev);
-    } else {
-      s=weightedPick(cfg.max,cfg.balls,weights,new Set([...prev,...hotSet]));
-      if(s.length<cfg.balls) s=weightedPick(cfg.max,cfg.balls,weights,prev);
-      if(game==='max3d'||game==='max3dpro') s=s.map(x=>x.padStart(3,'0')).slice(0,2);
-    }
-    const key=s.join('-'); if(s.length && !suggestions.some(x=>x===key)) suggestions.push(key);
-  }
-  return suggestions;
-}
-async function vlHistory(game,limit){
-  const cfg=VL[game]; const first=await vlLatestPage(game); const $=cheerio.load(first.html); const urls=[]; $("a").each((_,a)=>{const h=$(a).attr("href")||"";if(h.includes('vietlott.vn')||h.startsWith('/')){const u=new URL(h,'https://vietlott.vn').href;if((game==='mega'&&/\/645\?id=\d+/.test(u))||(game==='power'&&/\/655\?id=\d+/.test(u))||(game==='max3d'&&/\/max-3D\?id=\d+/.test(u))||(game==='max3dpro'&&/\/max-3DPro\?id=\d+/.test(u))||(game==='bingo'&&/view-detail-bingo18-result\?id=\d+/.test(u)))if(!urls.includes(u))urls.push(u);}});urls.unshift(first.url);const rows=[];for(const u of urls.slice(0,Math.max(5,Math.min(limit,30)))){try{const p=await vlFetch(u);const r=parseVL(game,p);if(r.results.length)rows.push(r);}catch{}}if(!rows.length)rows.push(parseVL(game,first.html));return rows;}
-function vlAnalysisKey(ip,game,drawId){return ['v2.7',ipKey(ip),game,drawId].join('|');}
+function weightedPick(max,count,weights,blocked=new Set(),allowedPool=null){const base=allowedPool||Array.from({length:max},(_,i)=>i+1);const pool=base.filter(n=>!blocked.has(n));const out=[];for(let k=0;k<count&&pool.length;k++){let total=0;for(const n of pool)total+=1+Math.sqrt((weights[n]||0)+1);let r=crypto.randomInt(0,Math.max(1,Math.floor(total*1000000)))/1000000;let chosen=pool[pool.length-1];for(const n of pool){const w=1+Math.sqrt((weights[n]||0)+1);r-=w;if(r<=0){chosen=n;break;}}out.push(chosen);pool.splice(pool.indexOf(chosen),1);}return out.sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0'));}
+function powerElement(n){return ['Kim','Mộc','Thủy','Hỏa','Thổ'][(n-1)%5];}
+function generateVL(game,historyRows,previous){const cfg=VL[game];const prev=new Set((previous||[]).map(Number));const weights=seededWeights(cfg.max,historyRows);const hot=[...Array(cfg.max).keys()].map(i=>i+1).sort((a,b)=>(weights[b]||0)-(weights[a]||0));const hotSet=new Set(hot.slice(0,Math.max(1,Math.floor(cfg.max*.12))));const suggestions=[];for(let i=0;i<5;i++){let s;if(game==='mega'){s=weightedPick(45,6,weights,prev);}else if(game==='power'){const elements=['Kim','Mộc','Thủy','Hỏa','Thổ'];const target=elements[i%5];const pw=Object.fromEntries(Object.entries(weights).map(([n,w])=>[n,powerElement(Number(n))===target?(w+1)*2.5:w]));const chosen=[];for(const e of elements){const pool=Array.from({length:55},(_,k)=>k+1).filter(n=>powerElement(n)===e);const p=weightedPick(55,1,pw,new Set([...prev,...hotSet]),pool);if(p.length)chosen.push(p[0]);}while(chosen.length<6){const pool=Array.from({length:55},(_,k)=>k+1).filter(n=>!prev.has(n)&&!hotSet.has(n)&&!chosen.includes(n));const p=weightedPick(55,1,weights,new Set(),pool);if(!p.length)break;chosen.push(p[0]);}s=chosen.slice(0,6).sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0'));}else if(game==='bingo'){s=weightedPick(9,3,weights,new Set([...prev,...hotSet]));}else if(game==='lotto'){s=weightedPick(35,5,weights,new Set([...prev,...hotSet]));}else{s=weightedPick(cfg.max,cfg.balls,weights,new Set([...prev,...hotSet]));if(s.length<cfg.balls)s=weightedPick(cfg.max,cfg.balls,weights,prev);if(game==='max3d'||game==='max3dpro')s=s.map(x=>x.padStart(3,'0')).slice(0,2);}const key=s.join('-');if(s.length&&!suggestions.includes(key))suggestions.push(key);}return suggestions;}
+async function vlHistory(game,limit){try{const rows=await vlRawRows(game);return rows.slice(0,Math.max(5,Math.min(limit,365))).map(r=>normalizeRawVL(game,r)).filter(Boolean);}catch{return [await vlResult(game)];}}
+function vlAnalysisKey(ip,game,drawId){return ['v2.8',ipKey(ip),game,drawId].join('|');}
 app.get('/api/vietlott/results',async(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();const r=await vlResult(game);res.json(r);}catch(e){res.status(502).json({error:e.message});}});
-app.get('/api/vietlott/analyze',async(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();const history=Math.min(Math.max(+req.query.history||90,5),365);const current=await vlResult(game);const key=vlAnalysisKey(clientIP(req),game,current.drawId);const saved=vietlottDB.analyses.find(x=>x.key===key);if(saved)return res.json({...saved,saved:true,once:true});const rows=await vlHistory(game,history);const suggestions=generateVL(game,rows.map(x=>x.results),rows[0]?.results);const matches=suggestions.filter(s=>game==='bingo' ? s.split('-').join('')===current.results.join('') : (game==='max3d'||game==='max3dpro') ? s.split('-').every((x,i)=>x===current.results[i]) : s.split('-').every(x=>current.results.includes(x))); const payload={key,game,drawId:current.drawId,date:current.date,history,algorithm:game==='mega'?'Lồng cầu cơ học mô phỏng + tần suất lịch sử + loại kỳ trước':game==='power'?'Lồng cầu cơ học mô phỏng + ngũ hành theo kỳ + loại kỳ trước':game==='bingo'?'CSPRNG + loại số có tần suất cao':'HRNG mô phỏng bằng entropy hệ điều hành/CSPRNG',suggestions,matches,note:'Đây là mô phỏng phần mềm. Không đại diện cho thiết bị quay vật lý hoặc HRNG phần cứng thật; dữ liệu kết quả dùng để đối chiếu là dữ liệu Vietlott công bố.',at:new Date().toISOString()};vietlottDB.analyses.push(payload);saveVietlottDB();res.json({...payload,saved:true,once:true});}catch(e){res.status(500).json({error:e.message});}});
+app.get('/api/vietlott/analyze',async(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();const history=Math.min(Math.max(+req.query.history||90,5),365);const current=await vlResult(game);const key=vlAnalysisKey(clientIP(req),game,current.drawId);const saved=vietlottDB.analyses.find(x=>x.key===key);if(saved)return res.json({...saved,saved:true,once:true});const rows=await vlHistory(game,history);const suggestions=generateVL(game,rows.map(x=>x.results),rows[0]?.results);const matches=suggestions.filter(s=>game==='bingo'?s.split('-').join('')===current.results.join(''):(game==='max3d'||game==='max3dpro')?s.split('-').every((x,i)=>x===current.results[i]):s.split('-').every(x=>current.results.includes(x)));const payload={key,game,drawId:current.drawId,date:current.date,history,algorithm:game==='mega'?'Lồng cầu cơ học mô phỏng + tần suất lịch sử + loại kỳ trước':game==='power'?'Lồng cầu cơ học mô phỏng + ngũ hành theo kỳ + loại kỳ trước':game==='bingo'?'CSPRNG + loại số có tần suất cao':'Nguồn ngẫu nhiên mô phỏng bằng CSPRNG/OS entropy',suggestions,matches,note:'Kết quả ưu tiên nguồn công bố; khi Vietlott chặn HTTP 403 từ máy chủ Render, ứng dụng dùng nguồn dự phòng công khai và dữ liệu lịch sử đã chuẩn hóa. Thuật toán là mô phỏng phần mềm, không phải thiết bị quay vật lý hoặc HRNG phần cứng thật.',sourceType:current.sourceType,at:new Date().toISOString()};vietlottDB.analyses.push(payload);saveVietlottDB();res.json({...payload,saved:true,once:true});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/vietlott/visit',(req,res)=>{try{const game=String(req.query.game||'mega').toLowerCase();if(!['mega','power','bingo','max3d','max3dpro','lotto'].includes(game))return res.status(400).json({error:'Sản phẩm không hợp lệ'});recordVietlottVisit(req,game);res.json({ok:true});}catch(e){res.status(500).json({error:e.message});}});
-app.get('/api/vietlott/stats',(req,res)=>{
-  const games=['mega','power','bingo','max3d','max3dpro','lotto'];
-  const a=vietlottDB.analyses||[]; const byGame={};
-  for(const g of games){
-    const ga=a.filter(x=>x.game===g);
-    const matches=ga.filter(x=>(x.matches||[]).length>0).length;
-    const visits=Object.entries(vietlottDB.visits||{}).filter(([k])=>k.endsWith('|'+g)).reduce((sum,[,v])=>sum+Number(v||0),0);
-    const ips=new Set(Object.keys(vietlottDB.uniqueIPs||{}).filter(k=>k.includes('|'+g+'|')).map(k=>k.split('|')[2]));
-    byGame[g]={visits,uniqueVisitors:ips.size,analyses:ga.length,checks:ga.length,matches,rate:ga.length?+(matches*100/ga.length).toFixed(2):0};
-  }
-  const totalVisits=Object.values(byGame).reduce((s,v)=>s+v.visits,0);
-  const totalUniqueVisitors=new Set(Object.keys(vietlottDB.uniqueIPs||{}).map(k=>k.split('|')[2])).size;
-  const totalAnalyses=a.length, totalMatches=a.filter(x=>(x.matches||[]).length>0).length;
-  const days=[];
-  for(let i=0;i<30;i++){
-    const d=new Date(); d.setDate(d.getDate()-i); const date=d.toISOString().slice(0,10);
-    const visits=Object.entries(vietlottDB.visits||{}).filter(([k])=>k.startsWith(date+'|')).reduce((sum,[,v])=>sum+Number(v||0),0);
-    const ips=new Set(Object.keys(vietlottDB.uniqueIPs||{}).filter(k=>k.startsWith(date+'|')).map(k=>k.split('|')[2]));
-    const da=a.filter(x=>String(x.at||x.date||'').slice(0,10)===date); const matches=da.filter(x=>(x.matches||[]).length>0).length;
-    days.push({date,visits,uniqueVisitors:ips.size,analyses:da.length,matches,rate:da.length?+(matches*100/da.length).toFixed(2):0});
-  }
-  res.json({version:'v2.7',totalVisits,totalUniqueVisitors,totalAnalyses,totalMatches,rate:totalAnalyses?+(totalMatches*100/totalAnalyses).toFixed(2):0,byGame,days});
-});
-
+app.get('/api/vietlott/stats',(req,res)=>{const games=['mega','power','bingo','max3d','max3dpro','lotto'];const a=vietlottDB.analyses||[];const byGame={};for(const g of games){const ga=a.filter(x=>x.game===g);const matches=ga.filter(x=>(x.matches||[]).length>0).length;const visits=Object.entries(vietlottDB.visits||{}).filter(([k])=>k.endsWith('|'+g)).reduce((sum,[,v])=>sum+Number(v||0),0);const ips=new Set(Object.keys(vietlottDB.uniqueIPs||{}).filter(k=>k.includes('|'+g+'|')).map(k=>k.split('|')[2]));byGame[g]={visits,uniqueVisitors:ips.size,analyses:ga.length,checks:ga.length,matches,rate:ga.length?+(matches*100/ga.length).toFixed(2):0};}const totalVisits=Object.values(vietlottDB.visits||{}).reduce((a,b)=>a+Number(b||0),0);const totalUniqueVisitors=new Set(Object.keys(vietlottDB.uniqueIPs||{}).map(k=>k.split('|')[2])).size;const totalAnalyses=a.length;const totalMatches=a.filter(x=>(x.matches||[]).length>0).length;const days=[];for(let i=0;i<30;i++){const d=new Date();d.setDate(d.getDate()-i);const date=d.toISOString().slice(0,10);const da=a.filter(x=>String(x.at||'').slice(0,10)===date);const visits=Object.entries(vietlottDB.visits||{}).filter(([k])=>k.startsWith(date+'|')).reduce((sum,[,v])=>sum+Number(v||0),0);const ips=new Set(Object.keys(vietlottDB.uniqueIPs||{}).filter(k=>k.startsWith(date+'|')).map(k=>k.split('|')[2]));const matches=da.filter(x=>(x.matches||[]).length>0).length;days.push({date,visits,uniqueVisitors:ips.size,analyses:da.length,matches,rate:da.length?+(matches*100/da.length).toFixed(2):0});}res.json({version:'v2.8',totalVisits,totalUniqueVisitors,totalAnalyses,totalMatches,rate:totalAnalyses?+(totalMatches*100/totalAnalyses).toFixed(2):0,byGame,days});});
 app.listen(PORT,()=>console.log(`XSMN V2.7: http://localhost:${PORT}`));
