@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./assets/icon-180.png">
+<link rel="icon" href="./assets/icon-192.png" type="image/png">
+<title>SỔ ĐỎ • XSMN • VIETLOTT V2.8.3</title>
+<script src="./config.js"></script>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
+*{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between}.logo{font-size:29px;font-weight:850}.today{font-size:12px;color:#667085}
+.card{background:#fff;border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 5px 20px #1018280b}
+.hero{background:#111827;color:#fff}.hero .muted{color:#c7ced9}
+h1,h2,h3{margin:0 0 7px}h2{font-size:21px}h3{font-size:17px}.muted{color:#667085;font-size:13px;line-height:1.45}
+label{display:block;margin:11px 0 6px;font-size:12px;font-weight:750;color:#475467}
+select,input,button{width:100%;padding:13px;border-radius:13px;font-size:16px;min-width:0;max-width:100%}
+select,input{border:1px solid #d0d5dd;background:#fff;min-width:0;max-width:100%;display:block}input[type=date]{width:100%;min-width:0;appearance:none;-webkit-appearance:none}button{border:0;background:#111827;color:#fff;font-weight:750;margin-top:11px}
+.secondary{background:#eef2f6;color:#344054}.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;align-items:end}.row>div{min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{padding:8px 10px;border-radius:999px;background:#eef2ff;color:#344054;font-size:13px}.chip.hot{background:#111827;color:#fff}
+.number{font-size:31px;letter-spacing:4px;font-weight:900}.match-hit{background:#22c55e;color:#071b0b;border-radius:5px;padding:1px 3px;font-weight:900;box-shadow:0 0 0 1px #16a34a}.match-box{margin:10px 0;padding:10px 12px;border-radius:12px;background:#ecfdf3;color:#166534;font-size:13px;font-weight:750}.saved-badge{display:inline-block;margin-left:6px;padding:4px 7px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-weight:800}.biggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.stat{border:1px solid #eaecf0;border-radius:14px;padding:11px}.stat b{font-size:18px}.bar{height:6px;background:#eaecf0;border-radius:8px;margin-top:7px;overflow:hidden}.bar i{display:block;height:100%;background:#111827}
+table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1px solid #eaecf0;text-align:left}th{font-size:11px;color:#667085}
+.scroll{overflow:auto}.error{color:#b42318;background:#fef3f2;padding:12px;border-radius:13px}.loading{opacity:.55}
+.bottom{position:fixed;bottom:0;left:0;right:0;background:#ffffffee;border-top:1px solid #eaecf0;padding:10px max(14px,calc((100vw - 760px)/2 + 14px)) calc(10px + env(safe-area-inset-bottom));backdrop-filter:blur(14px)}
+.bottom button{margin:0}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.statbox{border:1px solid #eaecf0;border-radius:14px;padding:12px}.statbox b{font-size:22px}.rate{font-weight:900;color:#166534}.table-wrap{overflow:auto}.mini-note{font-size:11px;color:#667085;line-height:1.4}.admin-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-actions button{margin-top:0}.badge-green{display:inline-block;padding:4px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:800}
+</style>
+
+<style id="boot-critical">html,body{background:#fffaf2!important}#boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#fffaf2 0%,#f7e5d5 48%,#8f1d2c 160%);transition:opacity .45s ease,visibility .45s ease}#boot.hide{opacity:0;visibility:hidden;pointer-events:none}.boot-card{text-align:center;width:min(88vw,390px);padding:20px}.boot-logo{width:min(62vw,250px);height:min(62vw,250px);object-fit:cover;border-radius:28px;box-shadow:0 18px 45px #6f162633;border:5px solid #fff}.boot-title{margin-top:15px;font:900 27px/1.1 -apple-system,BlinkMacSystemFont,Arial;color:#8f1d2c;letter-spacing:.4px}.boot-sub{margin-top:7px;font:600 13px/1.4 -apple-system,BlinkMacSystemFont,Arial;color:#6b3a3f}.boot-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8f1d2c;margin:18px 3px 0;animation:bd 1s infinite ease-in-out}.boot-dot:nth-child(2){animation-delay:.15s}.boot-dot:nth-child(3){animation-delay:.3s}@keyframes bd{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-5px);opacity:1}}
+</style>
+</head>
+<body>
+<div id="boot" aria-label="Đang mở ứng dụng"><div class="boot-card"><img class="boot-logo" src="./assets/logo.jpg" alt="Sổ Đỏ - Tư Vấn Số Đẹp"><div class="boot-title">SỔ ĐỎ</div><div class="boot-sub">Tư Vấn Số Đẹp • XSMN • VIETLOTT</div><div><i class="boot-dot"></i><i class="boot-dot"></i><i class="boot-dot"></i></div></div></div>
+<div class="app">
+  <div class="top"><div class="logo"><img src="./assets/logo.jpg" style="width:34px;height:34px;border-radius:10px;vertical-align:middle;margin-right:7px;object-fit:cover" alt="Sổ Đỏ">🎯 XSMN V2.8.3</div><div class="today" id="clock"></div></div>
+
+  <section class="card hero">
+    <button id="vietlottLink" class="secondary" style="margin-top:0;margin-bottom:10px">🎰 Mở trang Vietlott</button>
+    <h2>Hôm nay</h2>
+    <div class="muted">Chọn ngày và đài. Ứng dụng tự lọc đúng lịch XSMN.</div>
+    <div class="row">
+      <div><label style="color:#d8dee8">Ngày</label><input id="date" type="date"></div>
+      <div><label style="color:#d8dee8">Đài</label><select id="province"></select></div>
+    </div>
+    <button id="view">Xem kết quả</button>
+  </section>
+
+  <section class="card" id="dayCard"><div class="loading">Đang tải…</div></section>
+
+  <section class="card">
+    <h2>📊 Thống kê lịch sử</h2>
+    <div class="row">
+      <div><label>Số ngày</label><select id="days"><option>30</option><option>60</option><option selected>90</option><option>180</option><option>365</option></select></div>
+      <div><label>Phạm vi</label><select id="prize"><option value="ALL">Tất cả giải</option><option value="ĐB">Đặc biệt</option><option value="G1">Giải 1</option><option value="G2">Giải 2</option><option value="G3">Giải 3</option><option value="G4">Giải 4</option><option value="G5">Giải 5</option><option value="G6">Giải 6</option><option value="G7">Giải 7</option><option value="G8">Giải 8</option></select></div>
+    </div>
+    <button id="analyze">Phân tích lịch sử</button>
+  </section>
+
+  <section id="analysis"></section>
+
+  <section class="card" id="statsCard">
+    <h2>📊 Thống kê hoạt động</h2>
+    <div class="muted">Theo dõi lượt truy cập, người dùng duy nhất, số lần phân tích và tỷ lệ khớp toàn bộ giải trong 30 ngày gần nhất. Dữ liệu thống kê được lấy từ máy chủ.</div>
+    <div class="admin-actions">
+      <button id="loadStats">Xem thống kê</button>
+      <button id="hideStats" class="secondary">Ẩn thống kê</button>
+    </div>
+    <div id="stats" style="display:none;margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h3>ℹ️ Ghi chú</h3>
+    <div class="muted">Số hiển thị là kết quả và thống kê tần suất lịch sử. Tần suất quá khứ không bảo đảm hoặc làm thay đổi xác suất toán học của kỳ quay tiếp theo.</div>
+    <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
+  </section>
+</div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm SỔ ĐỎ vào Màn hình chính</button></div>
+
+<script>
+function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hide')}
+setTimeout(hideBoot,900);
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+const API_BASE=(window.APP_CONFIG?.API_BASE||"").replace(/\/$/,'');
+const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
+const $=x=>document.getElementById(x);
+const d0=new Date(); $("date").value=d0.toISOString().slice(0,10);
+$("clock").textContent=d0.toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"});
+let currentDay=null,currentAnalysis=null;
+function provinces(){const d=new Date($("date").value+"T12:00:00").getDay();$("province").innerHTML=(schedule[d]||[]).map(x=>`<option>${x}</option>`).join("")}
+function esc(s){return String(s).replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\\":"&#92;"}[m]))}
+function analysisKey(){return `xsmn-v291-analysis|${$("date").value}|${$("province").value}|${$("prize").value}`}
+function suggestionsFrom(a){return [...new Set((a?.combinations||[]).map(x=>String(x.number)).filter(Boolean))]}
+function highlightNumber(value,suggestions){
+  const n=String(value); const marks=Array(n.length).fill(false);
+  for(const s of suggestions){ if(!s) continue; let from=0; while(true){const i=n.indexOf(s,from); if(i<0) break; for(let k=i;k<i+s.length;k++) marks[k]=true; from=i+1;} }
+  let out="", i=0; while(i<n.length){ const hit=marks[i]; let j=i+1; while(j<n.length&&marks[j]===hit)j++; const part=esc(n.slice(i,j)); out+=hit?`<span class="match-hit">${part}</span>`:part; i=j; }
+  return out;
+}
+function renderDay(){
+  if(!currentDay){return}
+  const suggestions=suggestionsFrom(currentAnalysis);
+  const partial=[];
+  const exact=[];
+  const chips=Object.entries(currentDay.prizes).map(([k,v])=>{
+    const nums=v.map(n=>{
+      const value=String(n);
+      const exactHits=suggestions.filter(s=>value===s);
+      const partialHit=suggestions.some(s=>value.includes(s));
+      if(exactHits.length) exact.push(`${k}: ${value}`);
+      else if(partialHit) partial.push(`${k}: ${value}`);
+      return highlightNumber(value,suggestions);
+    }).join(" ");
+    return `<span class="chip"><b>${esc(k)}</b> ${nums}</span>`;
+  }).join("");
+  let box="";
+  if(exact.length){
+    box+=`<div class="match-box" style="background:#dcfce7;color:#14532d;border:1px solid #86efac">🎯 <b>KHỚP TOÀN BỘ GIẢI:</b> ${exact.map(esc).join(" · ")}</div>`;
+  }
+  if(partial.length){
+    box+=`<div class="match-box">🟢 Có số cho xuất hiện đúng thứ tự trong kết quả: ${partial.map(esc).join(" · ")}</div>`;
+  }
+  $("dayCard").innerHTML=`<h2>${esc(currentDay.province)}</h2><div class="muted">${esc(currentDay.date)}</div>${box}<div class="chips" style="margin-top:10px">${chips}</div>`;
+}
+async function day(){
+  $("dayCard").innerHTML='<div class="loading">Đang tải kết quả…</div>';
+  try{
+    const j=await (await apiFetch("/api/day?date="+encodeURIComponent($("date").value))).json(); if(j.error)throw Error(j.error);
+    currentDay=j.results.find(x=>x.province===$("province").value); if(!currentDay)throw Error("Chưa có dữ liệu cho đài này.");
+    renderDay(); hideBoot();
+  }catch(e){currentDay=null;$("dayCard").innerHTML=`<div class="error">${esc(e.message)}</div>`}
+}
+function statCards(arr,title){
+  return `<h3 style="margin-top:16px">${title}</h3><div class="biggrid">${arr.slice(0,10).map((x,i)=>`<div class="stat"><b>${x.digit}</b> <span class="muted">${x.pct}%</span><div class="bar"><i style="width:${Math.min(100,x.pct*4)}%"></i></div><div class="muted">${x.count} lần</div></div>`).join("")}</div>`;
+}
+function renderAnalysis(j){
+  currentAnalysis=j;
+  const pos=j.positions.map(p=>`<tr><td>Hàng ${p.position} ← phải</td><td>${p.digits.slice(0,5).map(x=>`<b>${x.digit}</b> ${x.pct}%`).join(" · ")}</td></tr>`).join("");
+  const combo=j.combinations.slice(0,5).map((x,i)=>`<span class="chip ${i<3?"hot":""}">${i+1}. <b>${esc(x.number)}</b></span>`).join("");
+  const matched=(j.matchInfo?.matched||[]);
+  const matchSummary=matched.length
+    ? `<div class="match-box" style="background:#dcfce7;color:#14532d;border:1px solid #86efac">🎯 <b>KHỚP TOÀN BỘ GIẢI:</b> ${matched.map(x=>`${esc(x.prize)}: ${x.numbers.map(esc).join(", ")}`).join(" · ")}</div>`
+    : `<div class="match-box">ℹ️ Chưa ghi nhận số cho khớp toàn bộ số của giải trong kỳ đang xem.</div>`;
+  const last2=j.last2.slice(0,10).map(x=>`<span class="chip">${esc(x.value)} · ${x.pct}%</span>`).join("");
+  const last3=j.last3.slice(0,10).map(x=>`<span class="chip">${esc(x.value)} · ${x.pct}%</span>`).join("");
+  $("analysis").innerHTML=`
+  <section class="card">
+    <h2>🔢 Bộ số tham khảo <span class="saved-badge">✓ Đã lưu</span></h2><div class="muted">${esc(j.province)} · ${j.draws} kỳ · ${j.numberCount} số · ${j.prize==="ALL"?"Tất cả giải":esc(j.prize)} · phân tích ${j.days} ngày</div>
+    ${matchSummary}
+    <div class="number" style="margin:13px 0">${esc(j.combinations[0]?.number||"—")}</div>
+    <div class="chips">${combo}</div>
+    <div class="muted" style="margin-top:10px">Chỉ tạo 5 nhóm số. Thuật toán lọc các đuôi có tần suất lịch sử quá cao rồi xếp hạng các tổ hợp còn lại bằng điểm cân bằng tần suất. Đây là bộ lọc thống kê, không phải dự đoán chắc chắn.</div>
+    <div class="muted" style="margin-top:6px">Bộ số được lưu riêng theo ngày + đài + từng phạm vi giải. Bạn có thể phân tích thêm giải khác mà không ghi đè bộ số đã lưu của giải trước.</div>
+  </section>
+  <section class="card"><h2>📈 Từng vị trí từ phải sang trái</h2><div class="scroll"><table><tr><th>Vị trí</th><th>Chữ số có tần suất cao</th></tr>${pos}</table></div></section>
+  <section class="card">${statCards(j.heads,"Đầu số")}${statCards(j.tails,"Đuôi số")}</section>
+  <section class="card"><h2>2 số cuối thường xuất hiện</h2><div class="chips">${last2}</div><h3>3 số cuối</h3><div class="chips">${last3}</div></section>
+  <section class="card"><div class="muted">${esc(j.note)}</div></section>`;
+  renderDay();
+}
+function loadSavedAnalysis(){
+  const raw=localStorage.getItem(analysisKey());
+  if(!raw){currentAnalysis=null;$("analysis").innerHTML="";renderDay();return false}
+  try{renderAnalysis(JSON.parse(raw));return true}catch{localStorage.removeItem(analysisKey());currentAnalysis=null;return false}
+}
+async function analyze(){
+  if(loadSavedAnalysis()) return;
+  $("analysis").innerHTML='<section class="card"><div class="loading">Đang đọc và phân tích dữ liệu lịch sử…</div></section>';
+  try{
+    const u=new URL(API_BASE+"/api/analyze");u.searchParams.set("date",$("date").value);u.searchParams.set("province",$("province").value);u.searchParams.set("days",$("days").value);u.searchParams.set("prize",$("prize").value);
+    const j=await (await apiFetch(u)).json();if(j.error)throw Error(j.error);
+    localStorage.setItem(analysisKey(),JSON.stringify(j));
+    renderAnalysis(j);
+  }catch(e){$("analysis").innerHTML=`<section class="card"><div class="error">${esc(e.message)}</div></section>`}
+}
+async function refreshSelection(){
+  currentAnalysis=null; $("analysis").innerHTML="";
+  provinces();
+  await day();
+  loadSavedAnalysis();
+}
+$("date").onchange=refreshSelection;
+$("province").onchange=async()=>{currentAnalysis=null;$("analysis").innerHTML="";await day();loadSavedAnalysis()};
+$("days").onchange=loadSavedAnalysis;
+$("prize").onchange=loadSavedAnalysis;
+$("view").onclick=day;
+$("analyze").onclick=analyze;
+
+function pct(n,d){return d?((n*100/d).toFixed(2)+"%"):"0%"}
+function renderStats(j){
+  const cards=[
+    ["👥 Lượt truy cập",j.totalVisits],
+    ["🧑 Người truy cập duy nhất*",j.uniqueVisitors],
+    ["🔢 Tổng lần phân tích",j.totalAnalyses],
+    ["🎯 Lần có khớp toàn bộ",j.analysesWithFullMatch],
+    ["📈 Tỷ lệ phân tích có khớp",j.matchRate+"%"],
+    ["🏆 Tỷ lệ khớp từng giải",j.prizeMatchRate+"%"]
+  ].map(x=>`<div class="statbox"><div class="muted">${x[0]}</div><b>${esc(x[1])}</b></div>`).join("");
+  const rows=Object.entries(j.byPrize||{}).sort((a,b)=>a[0].localeCompare(b[0])).map(([prize,v])=>{
+    const rate=pct(v.matchedPrizeChecks,v.prizeChecks);
+    return `<tr><td><b>${esc(prize==="ALL"?"Tất cả giải":prize)}</b></td><td>${v.analyses}</td><td>${v.prizeChecks}</td><td>${v.matchedPrizeChecks}</td><td class="rate">${rate}</td></tr>`;
+  }).join("");
+  const days=(j.days||[]).slice(0,30).map(d=>`<tr><td>${esc(d.date)}</td><td>${d.analyses}</td><td>${d.matched}</td><td class="rate">${d.rate}%</td></tr>`).join("");
+  $("stats").innerHTML=`<div class="stats-grid">${cards}</div>
+    <div class="mini-note" style="margin:10px 0">* Người truy cập duy nhất được ước tính theo IP đã băm; đây không phải số người thực tế tuyệt đối. Tỷ lệ khớp là tỷ lệ quan sát từ dữ liệu app đã ghi nhận, không phải xác suất trúng xổ số.</div>
+    <h3 style="margin-top:15px">Tỷ lệ khớp theo phạm vi giải</h3>
+    <div class="table-wrap"><table><tr><th>Giải</th><th>Phân tích</th><th>Giải được kiểm</th><th>Giải khớp</th><th>Tỷ lệ</th></tr>${rows||'<tr><td colspan="5">Chưa có dữ liệu.</td></tr>'}</table></div>
+    <h3 style="margin-top:15px">30 ngày gần nhất</h3>
+    <div class="table-wrap"><table><tr><th>Ngày</th><th>Phân tích</th><th>Khớp</th><th>Tỷ lệ</th></tr>${days||'<tr><td colspan="4">Chưa có dữ liệu.</td></tr>'}</table></div>`;
+  $("stats").style.display="block";
+}
+async function loadStats(){
+  $("stats").style.display="block";
+  $("stats").innerHTML='<div class="loading">Đang tải thống kê…</div>';
+  try{const r=await apiFetch('/api/stats'); const j=await r.json(); if(j.error) throw Error(j.error); renderStats(j);}
+  catch(e){$("stats").innerHTML=`<div class="error">${esc(e.message)}</div>`;}
+}
+$("loadStats").onclick=loadStats;
+$("hideStats").onclick=()=>$("stats").style.display="none";
+provinces();
+$("vietlottLink").onclick=()=>location.href="./vietlott.html";
+day().then(loadSavedAnalysis);
+$("installHelp").onclick=()=>alert("Trên iPhone: mở trang này bằng Safari → Chia sẻ → Thêm vào Màn hình chính → bật “Mở dưới dạng ứng dụng web” → Thêm.");
+</script>
+</body>
+</html>
