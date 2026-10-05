@@ -1,4 +1,4 @@
-const CACHE = "so-do-v281-max3dplus-shell-v1";
+const CACHE = "so-do-v283-max3dplus-shell-v1";
 const SHELL = [
   "./",
   "./index.html",
