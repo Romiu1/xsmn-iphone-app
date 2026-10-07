@@ -1,25 +1,16 @@
-# SỔ ĐỎ Frontend V2.8.4
+# SỔ ĐỎ V2.8.1 — Frontend tách riêng cho GitHub Pages
 
-Bản frontend GitHub Pages dùng backend Render hiện tại:
-`https://xsmn-iphone-app.onrender.com`
+## Mục tiêu
+Frontend chạy độc lập trên GitHub Pages; API vẫn gọi Render qua `config.js`. Không đặt secret của Statistics Collector trong frontend.
 
-## Có trong V2.8.4
-- Max 3D+ là sản phẩm riêng và luôn hiển thị trong trang Vietlott.
-- Max 3D+: quay 18:00 Thứ 2, Thứ 4, Thứ 6 (giờ Việt Nam).
-- Có nút ⭐ MAX 3D+ và thẻ MAX 3D+ nổi bật.
-- Lotto 5/35: 5 số chính 01–35 + 1 số đặc biệt 01–12.
-- Giữ Max 3D và Max 3D Pro riêng.
-- Service Worker đổi cache version sang V2.8.4 để tránh dùng frontend cũ.
-- Logo và icon dùng lại đúng ảnh logo SỔ ĐỎ đã cung cấp, không thay logo mới.
+## Cài đặt
+1. Tạo/ dùng repository GitHub Pages.
+2. Xóa frontend cũ trong repo.
+3. Giải nén và tải **toàn bộ nội dung của thư mục này** vào thư mục gốc repo, không tải cả thư mục wrapper.
+4. Kiểm tra `config.js`: `API_BASE` phải là `https://xsmn-iphone-app.onrender.com`.
+5. Bật GitHub Pages → Deploy from branch → branch `main` → folder `/ (root)`.
 
-## Upload GitHub Pages
-Giải nén và chép **toàn bộ nội dung bên trong** vào root repository, gồm `index.html`, `vietlott.html`, `config.js`, `manifest.json`, `sw.js` và thư mục `assets`. Không đặt trong thư mục con.
+## Cấu trúc
+`index.html`, `vietlott.html`, `config.js`, `sw.js`, `manifest.json`, `assets/`.
 
-Sau khi commit, chờ GitHub Pages deploy. Nếu Safari vẫn giữ bản cũ, đóng Safari hoàn toàn rồi mở lại hoặc xóa dữ liệu website của GitHub Pages một lần để Service Worker nhận cache V2.8.4.
-
-
-## V2.8.4 – giữ riêng Max 3D và Max 3D+
-- Max 3D được giữ lại đầy đủ, không bị thay thế.
-- Max 3D+ là một sản phẩm riêng, nằm ngay cạnh Max 3D trong thanh chọn game.
-- Có nút mở riêng cho Max 3D và Max 3D+.
-- Đã tăng phiên bản service worker để tránh cache giao diện cũ.
+Lotto hiển thị **5 số chính 01–35 + 1 số đặc biệt 01–12**.

@@ -1,16 +1,16 @@
 <!doctype html>
 <html lang="vi">
 <head>
+<script src="./config.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1220">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" href="./assets/icon-180.png">
-<link rel="icon" href="./assets/icon-192.png" type="image/png">
-<title>SỔ ĐỎ • XSMN • VIETLOTT V2.8.3</title>
-<script src="./config.js"></script>
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<title>SỔ ĐỎ • XSMN • VIETLOTT</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;background:#f5f6f8;color:#101828}
 *{box-sizing:border-box}body{margin:0}.app{max-width:760px;margin:auto;padding:18px 14px calc(90px + env(safe-area-inset-bottom))}
@@ -38,7 +38,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 <body>
 <div id="boot" aria-label="Đang mở ứng dụng"><div class="boot-card"><img class="boot-logo" src="./assets/logo.jpg" alt="Sổ Đỏ - Tư Vấn Số Đẹp"><div class="boot-title">SỔ ĐỎ</div><div class="boot-sub">Tư Vấn Số Đẹp • XSMN • VIETLOTT</div><div><i class="boot-dot"></i><i class="boot-dot"></i><i class="boot-dot"></i></div></div></div>
 <div class="app">
-  <div class="top"><div class="logo"><img src="./assets/logo.jpg" style="width:34px;height:34px;border-radius:10px;vertical-align:middle;margin-right:7px;object-fit:cover" alt="Sổ Đỏ">🎯 XSMN V2.8.4</div><div class="today" id="clock"></div></div>
+  <div class="top"><div class="logo"><img src="./assets/logo.jpg" style="width:34px;height:34px;border-radius:10px;vertical-align:middle;margin-right:7px;object-fit:cover" alt="Sổ Đỏ">🎯 XSMN V2.8</div><div class="today" id="clock"></div></div>
 
   <section class="card hero">
     <button id="vietlottLink" class="secondary" style="margin-top:0;margin-bottom:10px">🎰 Mở trang Vietlott</button>
@@ -66,7 +66,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
 
   <section class="card" id="statsCard">
     <h2>📊 Thống kê hoạt động</h2>
-    <div class="muted">Theo dõi lượt truy cập, người dùng duy nhất, số lần phân tích và tỷ lệ khớp toàn bộ giải trong 30 ngày gần nhất. Dữ liệu thống kê được lấy từ máy chủ.</div>
+    <div class="muted">Theo dõi lượt truy cập, người dùng duy nhất, số lần phân tích và tỷ lệ khớp toàn bộ giải trong 30 ngày gần nhất.</div>
     <div class="admin-actions">
       <button id="loadStats">Xem thống kê</button>
       <button id="hideStats" class="secondary">Ẩn thống kê</button>
@@ -80,13 +80,15 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 4px;border-bottom:1p
     <div class="muted" style="margin-top:7px">Nguồn dữ liệu: SXMN.com.vn.</div>
   </section>
 </div>
-<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm SỔ ĐỎ vào Màn hình chính</button></div>
+<div class="bottom"><button id="installHelp" class="secondary">📱 Thêm XSMN V2.7 vào Màn hình chính</button></div>
 
 <script>
+const API_BASE = String(window.APP_CONFIG?.API_BASE || "").replace(/\/$/, "");
+const api = (p)=>API_BASE + p;
+
 function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hide')}
-setTimeout(hideBoot,900);
+setTimeout(hideBoot,1400);
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
-const API_BASE=(window.APP_CONFIG?.API_BASE||"").replace(/\/$/,'');
 const schedule={1:["TP.HCM","Đồng Tháp","Cà Mau"],2:["Bến Tre","Vũng Tàu","Bạc Liêu"],3:["Đồng Nai","Cần Thơ","Sóc Trăng"],4:["Tây Ninh","An Giang","Bình Thuận"],5:["Vĩnh Long","Bình Dương","Trà Vinh"],6:["Long An","Bình Phước","Hậu Giang","TP.HCM"],0:["Tiền Giang","Kiên Giang","Đà Lạt"]};
 const $=x=>document.getElementById(x);
 const d0=new Date(); $("date").value=d0.toISOString().slice(0,10);
@@ -94,7 +96,7 @@ $("clock").textContent=d0.toLocaleDateString("vi-VN",{weekday:"long",day:"2-digi
 let currentDay=null,currentAnalysis=null;
 function provinces(){const d=new Date($("date").value+"T12:00:00").getDay();$("province").innerHTML=(schedule[d]||[]).map(x=>`<option>${x}</option>`).join("")}
 function esc(s){return String(s).replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\\":"&#92;"}[m]))}
-function analysisKey(){return `xsmn-v291-analysis|${$("date").value}|${$("province").value}|${$("prize").value}`}
+function analysisKey(){return `xsmn-v24.2-analysis|${$("date").value}|${$("province").value}|${$("prize").value}`}
 function suggestionsFrom(a){return [...new Set((a?.combinations||[]).map(x=>String(x.number)).filter(Boolean))]}
 function highlightNumber(value,suggestions){
   const n=String(value); const marks=Array(n.length).fill(false);
@@ -130,7 +132,7 @@ function renderDay(){
 async function day(){
   $("dayCard").innerHTML='<div class="loading">Đang tải kết quả…</div>';
   try{
-    const j=await (await apiFetch("/api/day?date="+encodeURIComponent($("date").value))).json(); if(j.error)throw Error(j.error);
+    const j=await (await fetch(api("/api/day?date="+encodeURIComponent($("date").value)))).json(); if(j.error)throw Error(j.error);
     currentDay=j.results.find(x=>x.province===$("province").value); if(!currentDay)throw Error("Chưa có dữ liệu cho đài này.");
     renderDay(); hideBoot();
   }catch(e){currentDay=null;$("dayCard").innerHTML=`<div class="error">${esc(e.message)}</div>`}
@@ -172,8 +174,8 @@ async function analyze(){
   if(loadSavedAnalysis()) return;
   $("analysis").innerHTML='<section class="card"><div class="loading">Đang đọc và phân tích dữ liệu lịch sử…</div></section>';
   try{
-    const u=new URL(API_BASE+"/api/analyze");u.searchParams.set("date",$("date").value);u.searchParams.set("province",$("province").value);u.searchParams.set("days",$("days").value);u.searchParams.set("prize",$("prize").value);
-    const j=await (await apiFetch(u)).json();if(j.error)throw Error(j.error);
+    const u=new URL(api("/api/analyze"));u.searchParams.set("date",$("date").value);u.searchParams.set("province",$("province").value);u.searchParams.set("days",$("days").value);u.searchParams.set("prize",$("prize").value);
+    const j=await (await fetch(u)).json();if(j.error)throw Error(j.error);
     localStorage.setItem(analysisKey(),JSON.stringify(j));
     renderAnalysis(j);
   }catch(e){$("analysis").innerHTML=`<section class="card"><div class="error">${esc(e.message)}</div></section>`}
@@ -217,7 +219,7 @@ function renderStats(j){
 async function loadStats(){
   $("stats").style.display="block";
   $("stats").innerHTML='<div class="loading">Đang tải thống kê…</div>';
-  try{const r=await apiFetch('/api/stats'); const j=await r.json(); if(j.error) throw Error(j.error); renderStats(j);}
+  try{const r=await fetch(api('/api/stats')); const j=await r.json(); if(j.error) throw Error(j.error); renderStats(j);}
   catch(e){$("stats").innerHTML=`<div class="error">${esc(e.message)}</div>`;}
 }
 $("loadStats").onclick=loadStats;
